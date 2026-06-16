@@ -1,0 +1,43 @@
+{
+  "collector": {
+    "name": "QueryNodeCollector",
+    "args": {
+      "query": "TYPE:'cm:folder' AND PATH:'/app:company_home/*'"
+    }
+  },
+  "processor": {
+    "name": "NormalizeMetadataProcessor",
+    "args": {
+      "cm:author": [
+        {
+          "op": "trim"
+        },
+        {
+          "op": "collapse-whitespace"
+        },
+        {
+          "op": "case",
+          "value": "start"
+        },
+        {
+          "op": "regex",
+          "pattern": "\\s+",
+          "replace": " "
+        },
+        {
+          "op": "copy-to",
+          "value": "cm:publisher"
+        },
+        {
+          "op": "delete"
+        }
+      ],
+      "cm:description": [
+        {
+          "op": "parse-date-to",
+          "value": "cm:from"
+        }
+      ]
+    }
+  }
+}

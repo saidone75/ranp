@@ -1,0 +1,495 @@
+/*
+ *  Alfresco Node Processor - Do things with nodes
+ *  Copyright (C) 2023-2026 Saidone
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package org.saidone;
+
+import feign.FeignException;
+import lombok.Cleanup;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+import lombok.val;
+import org.alfresco.core.handler.NodesApi;
+import org.alfresco.core.handler.TrashcanApi;
+import org.alfresco.core.model.NodeBodyCreate;
+import org.alfresco.core.model.NodeBodyUpdate;
+import org.junit.jupiter.api.*;
+import org.saidone.collectors.NodeCollector;
+import org.saidone.collectors.NodeListCollector;
+import org.saidone.model.alfresco.ContentModel;
+import org.saidone.model.config.CollectorConfig;
+import org.saidone.model.config.Permission;
+import org.saidone.model.config.Permissions;
+import org.saidone.model.config.ProcessorConfig;
+import org.saidone.processors.NodeProcessor;
+import org.saidone.utils.CastUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ApplicationContext;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
+import java.io.File;
+import java.net.URI;
+import java.nio.file.Files;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
+
+@ActiveProfiles("test")
+
+@SpringBootTest
+@Slf4j
+/**
+ * Integration tests for the Alfresco Node Processor.
+ */
+class AlfrescoNodeProcessorIntegrationTests extends BaseTest {
+
+    @Autowired
+    ApplicationContext context;
+
+    @Autowired
+    LinkedBlockingQueue<String> queue;
+
+    @Autowired
+    AtomicInteger processedNodesCounter;
+
+    @Autowired
+    NodesApi nodesApi;
+
+    @Autowired
+    TrashcanApi trashcanApi;
+
+    @Value("${application.test-root-folder}")
+    private String testRootFolderPath;
+
+    private static final String TEST_DATA_URL = "https://freetestdata.com/wp-content/uploads/2021/09/Free_Test_Data_100KB_PDF.pdf";
+
+    @MockitoBean
+    AlfrescoNodeProcessorApplicationRunner alfrescoNodeProcessorApplicationRunner;
+
+    @BeforeEach
+    public void printName(TestInfo testInfo) {
+        log.info("testing --> {}", testInfo.getDisplayName());
+    }
+
+    @BeforeEach
+    public void resetProcessedNodesCounter() {
+        processedNodesCounter.set(0);
+    }
+
+    @AfterEach
+    public void emptyQueue() {
+        queue.clear();
+    }
+
+    @Test
+    @SneakyThrows
+    void testLogNodeNameProcessor() {
+        // create node
+        val nodeId = createNode();
+        // add node to queue
+        queue.add(nodeId);
+        // process node
+        ((NodeProcessor) context.getBean("logNodeNameProcessor")).process(new ProcessorConfig()).get();
+        try {
+            // assertions
+            Assertions.assertEquals(1, processedNodesCounter.get());
+        } finally {
+            // clean up
+            nodesApi.deleteNode(nodeId, true);
+        }
+    }
+
+    @Test
+    @SneakyThrows
+    void testAspectsAndPropertiesProcessor() {
+        // create node
+        val nodeId = createNode();
+        try {
+            // add node to queue
+            queue.add(nodeId);
+            // mock config
+            val processorConfig = new ProcessorConfig();
+            processorConfig.addArg("aspects", List.of(ContentModel.ASP_DUBLINCORE));
+            processorConfig.addArg("properties",
+                    Map.of(
+                            ContentModel.PROP_TITLE, "saidone",
+                            ContentModel.PROP_PUBLISHER, "saidone",
+                            ContentModel.PROP_CONTRIBUTOR, "saidone"
+                    ));
+            // process node
+            ((NodeProcessor) context.getBean("aspectsAndPropertiesProcessor")).process(processorConfig).get();
+            // get properties
+            var entry = Objects.requireNonNull(nodesApi.getNode(nodeId, null, null, null).getBody()).getEntry();
+            var aspects = entry.getAspectNames();
+            var properties = CastUtils.castToMapOfObjectObject(entry.getProperties(), String.class, Object.class);
+            // assertions
+            Assertions.assertEquals("saidone", properties.get(ContentModel.PROP_TITLE));
+            Assertions.assertEquals("saidone", properties.get(ContentModel.PROP_PUBLISHER));
+            Assertions.assertEquals("saidone", properties.get(ContentModel.PROP_CONTRIBUTOR));
+            Assertions.assertTrue(aspects.contains(ContentModel.ASP_DUBLINCORE));
+            Assertions.assertEquals(1, processedNodesCounter.get());
+            processorConfig.addArg("!aspects", List.of(String.format("%s", ContentModel.ASP_DUBLINCORE)));
+            processorConfig.addArg("properties",
+                    new HashMap<String, Object>() {{
+                        put(ContentModel.PROP_TITLE, null);
+                    }});
+            // add node to queue
+            queue.add(nodeId);
+            // process node
+            ((NodeProcessor) context.getBean("aspectsAndPropertiesProcessor")).process(processorConfig).get();
+            // get properties
+            entry = Objects.requireNonNull(nodesApi.getNode(nodeId, List.of("aspects"), null, null).getBody()).getEntry();
+            properties = CastUtils.castToMapOfObjectObject(entry.getProperties(), String.class, Object.class);
+            aspects = entry.getAspectNames();
+            // assertions
+            Assertions.assertNull(properties.get(ContentModel.PROP_TITLE));
+            Assertions.assertNull(properties.get(ContentModel.PROP_PUBLISHER));
+            Assertions.assertNull(properties.get(ContentModel.PROP_CONTRIBUTOR));
+            Assertions.assertFalse(aspects.contains(ContentModel.ASP_DUBLINCORE));
+            Assertions.assertEquals(2, processedNodesCounter.get());
+        } finally {
+            // clean up
+            nodesApi.deleteNode(nodeId, true);
+        }
+    }
+
+    @Test
+    @SneakyThrows
+    void testDeleteNodeProcessor() {
+        // create node
+        val nodeId = createNode();
+        // add node to queue
+        queue.add(nodeId);
+        // mock config
+        val processorConfig = new ProcessorConfig();
+        // process node
+        ((NodeProcessor) context.getBean("deleteNodeProcessor")).process(processorConfig).get();
+        // check if node has been deleted
+        Integer status = null;
+        try {
+            nodesApi.getNode(nodeId, null, null, null);
+        } catch (FeignException e) {
+            status = e.status();
+        }
+        // assertions
+        Assertions.assertEquals(404, status);
+        Assertions.assertEquals(1, processedNodesCounter.get());
+    }
+
+    @Test
+    @SneakyThrows
+    void testSetPermissionsProcessor() {
+        // create node
+        val nodeId = createNode();
+        // add node to queue
+        queue.add(nodeId);
+        // mock config
+        val processorConfig = new ProcessorConfig();
+        val permission = new Permission();
+        permission.setAuthorityId("GROUP_EVERYONE");
+        permission.setName("Collaborator");
+        permission.setAccessStatus("ALLOWED");
+        val permissions = new Permissions();
+        permissions.addLocallySet(permission);
+        permissions.setIsInheritanceEnabled(false);
+        processorConfig.addArg("permissions", permissions);
+        // process node
+        ((NodeProcessor) context.getBean("setPermissionsProcessor")).process(processorConfig).get();
+        // check permissions for node
+        val actualPermission = Objects.requireNonNull(nodesApi.getNode(nodeId, List.of("permissions"), null, null).getBody()).getEntry().getPermissions().getLocallySet().get(0);
+        try {
+            // assertions
+            Assertions.assertEquals(actualPermission.getAuthorityId(), permission.getAuthorityId());
+            Assertions.assertEquals(actualPermission.getName(), permission.getName());
+            Assertions.assertEquals(actualPermission.getAccessStatus().toString(), permission.getAccessStatus());
+            Assertions.assertEquals(1, processedNodesCounter.get());
+        } finally {
+            // clean up
+            nodesApi.deleteNode(nodeId, true);
+        }
+    }
+
+    @Test
+    @SneakyThrows
+    void testNodeListCollector() {
+        // create node
+        val nodeId = createNode();
+        // write node-id to a temp file
+        val file = File.createTempFile("nodeList-", ".txt");
+        Files.writeString(file.toPath(), nodeId);
+        // mock config
+        val collectorConfig = new CollectorConfig();
+        collectorConfig.addArg(NodeListCollector.NODE_LIST_ARG, file.getAbsolutePath());
+        // use collector to populate queue
+        (((NodeCollector) context.getBean("nodeListCollector")).collect(collectorConfig)).get();
+        try {
+            // assertions
+            Assertions.assertEquals(1, queue.size());
+            Assertions.assertEquals(nodeId, queue.peek());
+        } finally {
+            // clean up
+            nodesApi.deleteNode(nodeId, true);
+            Files.delete(file.toPath());
+        }
+    }
+
+    @Test
+    @SneakyThrows
+    void testNodeTreeCollector() {
+        // create node
+        val nodeId = createNode();
+        // mock config
+        val collectorConfig = new CollectorConfig();
+        collectorConfig.addArg("path", "/Guest Home");
+        // use collector to populate queue
+        (((NodeCollector) context.getBean("nodeTreeCollector")).collect(collectorConfig)).get();
+        try {
+            // assertions
+            Assertions.assertFalse(queue.isEmpty());
+        } finally {
+            // clean up
+            nodesApi.deleteNode(nodeId, true);
+        }
+    }
+
+    @Test
+    @SneakyThrows
+    void testMoveNodeProcessor() {
+        // create node
+        val url = (URI.create(TEST_DATA_URL).toURL());
+        val nodeId = createNode(getTestRootFolderNodeId(), url).getId();
+        // create a parent folder for the 2nd node
+        val parentId = createFolder();
+        // create 2nd node
+        val anotherNodeId = createNode(parentId, url).getId();
+        // add nodes to queue
+        queue.add(nodeId);
+        queue.add(anotherNodeId);
+        // create target folder
+        val targetParentId = createFolder();
+        // mock config
+        val processorConfig = new ProcessorConfig();
+        processorConfig.addArg("target-parent", targetParentId);
+        // process both nodes
+        val processor = ((NodeProcessor) context.getBean("moveNodeProcessor"));
+        processor.process(processorConfig).get();
+        processor.process(processorConfig).get();
+        // get node
+        val node = Objects.requireNonNull(nodesApi.getNode(nodeId, null, null, null).getBody()).getEntry();
+        val anotherNode = Objects.requireNonNull(nodesApi.getNode(anotherNodeId, null, null, null).getBody()).getEntry();
+        try {
+            // assertions
+            Assertions.assertEquals(targetParentId, node.getParentId());
+            // 2nd node not moved due to name clash
+            Assertions.assertEquals(parentId, anotherNode.getParentId());
+        } finally {
+            // clean up
+            nodesApi.deleteNode(parentId, true);
+            nodesApi.deleteNode(targetParentId, true);
+        }
+    }
+
+    @Test
+    @SneakyThrows
+    @SuppressWarnings("unchecked")
+    void testChainingNodeProcessor() {
+        // create node
+        val nodeId = createNode();
+        // add node to queue
+        queue.add(nodeId);
+        // mock config
+        val chainConfig = List.of(
+                Map.of("name", "LogNodeNameProcessor"),
+                Map.of(
+                        "name", "AspectsAndPropertiesProcessor",
+                        "args", Map.of("aspects", List.of(ContentModel.ASP_DUBLINCORE),
+                                "properties", Map.of(ContentModel.PROP_PUBLISHER, "saidone", ContentModel.PROP_CONTRIBUTOR, "saidone"),
+                                "readOnly", Boolean.FALSE
+                        )));
+        val processorConfig = new ProcessorConfig();
+        processorConfig.addArg("processors", chainConfig);
+        // process node
+        ((NodeProcessor) context.getBean("chainingNodeProcessor")).process(processorConfig).get();
+        // get properties
+        val properties = (Map<String, Object>) Objects.requireNonNull(nodesApi.getNode(nodeId, null, null, null).getBody()).getEntry().getProperties();
+        try {
+            // assertions
+            Assertions.assertEquals("saidone", properties.get(ContentModel.PROP_PUBLISHER));
+            Assertions.assertEquals("saidone", properties.get(ContentModel.PROP_CONTRIBUTOR));
+            Assertions.assertEquals(1, processedNodesCounter.get());
+        } finally {
+            // clean up
+            nodesApi.deleteNode(nodeId, true);
+        }
+    }
+
+    @Test
+    @SneakyThrows
+    void testDownloadNodeProcessor() {
+        // create node
+        val url = (URI.create(TEST_DATA_URL).toURL());
+        val nodeId = createNode(getTestRootFolderNodeId(), url).getId();
+        val nodeBodyUpdate = new NodeBodyUpdate();
+        // add versionable aspect
+        nodeBodyUpdate.setAspectNames(List.of(ContentModel.ASP_VERSIONABLE));
+        // add properties
+        val properties = new HashMap<String, Object>();
+        properties.put(ContentModel.PROP_AUTHOR, "author");
+        properties.put(ContentModel.PROP_AUTO_VERSION_ON_UPDATE_PROPS, true);
+        nodeBodyUpdate.setProperties(properties);
+        nodesApi.updateNode(nodeId, nodeBodyUpdate, null, null);
+        // create new version
+        properties.put(ContentModel.PROP_AUTHOR, "new-author");
+        nodeBodyUpdate.setProperties(properties);
+        nodesApi.updateNode(nodeId, nodeBodyUpdate, null, null);
+        // add node to queue
+        queue.add(nodeId);
+        // mock config
+        val processorConfig = new ProcessorConfig();
+        processorConfig.addArg("output-dir", System.getProperty("java.io.tmpdir"));
+        // process node
+        ((NodeProcessor) context.getBean("downloadNodeProcessor")).process(processorConfig).get();
+        // get node
+        val node = Objects.requireNonNull(nodesApi.getNode(nodeId, List.of("path"), null, null).getBody()).getEntry();
+        val downloadPath = String.format("%s%s%s", File.separator, System.getProperty("java.io.tmpdir"), node.getPath().getName());
+        try {
+            val fileName = TEST_DATA_URL.replaceAll("^.*/", "");
+            // check that the downloaded file exists
+            @Cleanup("delete") val contentFile = new File(downloadPath, fileName);
+            @Cleanup("delete") val metadataFile = new File(downloadPath, String.format("%s.metadata.properties.xml", fileName));
+            Assertions.assertTrue(contentFile.exists(), "Downloaded file should exist: " + contentFile.getAbsolutePath());
+            Assertions.assertTrue(metadataFile.exists(), "Metadata file should exist: " + metadataFile.getAbsolutePath());
+        } finally {
+            // clean up
+            nodesApi.deleteNode(nodeId, true);
+        }
+    }
+
+    @Test
+    @SneakyThrows
+    void testNormalizeMetadataProcessor() {
+        // create node
+        val url = (URI.create(TEST_DATA_URL).toURL());
+        val nodeId = createNode(getTestRootFolderNodeId(), url).getId();
+        val nodeBodyUpdate = new NodeBodyUpdate();
+        // add properties
+        val properties = new HashMap<String, Object>();
+        properties.put(ContentModel.PROP_AUTHOR, " john  doe");
+        properties.put(ContentModel.PROP_DESCRIPTION, "2026-02-27 15:20:00.0");
+        nodeBodyUpdate.setProperties(properties);
+        nodesApi.updateNode(nodeId, nodeBodyUpdate, null, null);
+        // add node to queue
+        queue.add(nodeId);
+        // mock config
+        val processorConfig = new ProcessorConfig();
+        var configArray = new ArrayList<HashMap<String, String>>();
+        configArray.add(new HashMap<>() {{
+            put("op", "trim");
+        }});
+        configArray.add(new HashMap<>() {{
+            put("op", "collapse-whitespace");
+        }});
+        configArray.add(new HashMap<>() {{
+            put("op", "case");
+            put("value", "start");
+        }});
+        configArray.add(new HashMap<>() {{
+            put("op", "copy-to");
+            put("value", ContentModel.PROP_PUBLISHER);
+        }});
+        configArray.add(new HashMap<>() {{
+            put("op", "delete");
+        }});
+        processorConfig.addArg(ContentModel.PROP_AUTHOR, configArray);
+        configArray = new ArrayList<>();
+        configArray.add(new HashMap<>() {{
+            put("op", "parse-date-to");
+            put("value", ContentModel.PROP_FROM);
+        }});
+        configArray.add(new HashMap<>() {{
+            put("op", "delete");
+        }});
+        processorConfig.addArg(ContentModel.PROP_DESCRIPTION, configArray);
+        // process node
+        ((NodeProcessor) context.getBean("normalizeMetadataProcessor")).process(processorConfig).get();
+        // get node
+        val node = Objects.requireNonNull(nodesApi.getNode(nodeId, null, null, null).getBody()).getEntry();
+        val actualProperties = CastUtils.castToMapOfStringSerializable(node.getProperties());
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+        try {
+            Assertions.assertInstanceOf(OffsetDateTime.class, OffsetDateTime.parse((String) actualProperties.get(ContentModel.PROP_FROM), formatter));
+            Assertions.assertEquals("John Doe", actualProperties.get(ContentModel.PROP_PUBLISHER));
+            Assertions.assertNull(actualProperties.get(ContentModel.PROP_AUTHOR));
+            Assertions.assertNull(actualProperties.get(ContentModel.PROP_DESCRIPTION));
+        } finally {
+            // clean up
+            nodesApi.deleteNode(nodeId, true);
+        }
+    }
+
+    @Test
+    @SneakyThrows
+    void testTrashcanProcessor() {
+        // create node
+        val url = (URI.create(TEST_DATA_URL).toURL());
+        val nodeId = createNode(getTestRootFolderNodeId(), url).getId();
+        // trash node
+        nodesApi.deleteNode(nodeId, false);
+        // add node to queue
+        queue.add(nodeId);
+        // mock config
+        val processorConfig = new ProcessorConfig();
+        processorConfig.addArg("op", "delete");
+        ((NodeProcessor) context.getBean("trashcanNodeProcessor")).process(processorConfig).get();
+        Assertions.assertThrows(FeignException.NotFound.class, () -> trashcanApi.getDeletedNode(nodeId, null));
+    }
+
+    @SneakyThrows
+    @SuppressWarnings("unused")
+    private String getGuestHomeNodeId() {
+        val collectorConfig = new CollectorConfig();
+        collectorConfig.addArg("query", "PATH:'/app:company_home/app:guest_home'");
+        (((NodeCollector) context.getBean("queryNodeCollector")).collect(collectorConfig)).get();
+        return queue.take();
+    }
+
+    private String getTestRootFolderNodeId() {
+        return Objects.requireNonNull(nodesApi.getNode("-root-", null, testRootFolderPath, null).getBody()).getEntry().getId();
+    }
+
+    private String createNode() {
+        return createNode(ContentModel.TYPE_CONTENT);
+    }
+
+    private String createFolder() {
+        return createNode(ContentModel.TYPE_FOLDER);
+    }
+
+    private String createNode(String nodeType) {
+        val nodeBodyCreate = new NodeBodyCreate();
+        nodeBodyCreate.setNodeType(nodeType);
+        nodeBodyCreate.setName(UUID.randomUUID().toString());
+        return Objects.requireNonNull(nodesApi.createNode(getTestRootFolderNodeId(), nodeBodyCreate, null, null, null, null, null)
+                .getBody()).getEntry().getId();
+    }
+
+}

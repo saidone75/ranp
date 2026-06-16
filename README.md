@@ -1,0 +1,294 @@
+# Alfresco Node Processor
+_Giro... vedo nodi... faccio cose..._
+
+_Do things with nodes._
+
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Javadoc](https://img.shields.io/badge/Javadoc-API-blue.svg)](https://saidone75.github.io/alfresco-node-processor/javadoc/)
+![Java CI](https://github.com/saidone75/alfresco-node-processor/actions/workflows/build.yml/badge.svg)
+![CodeQL](https://github.com/saidone75/alfresco-node-processor/actions/workflows/codeql.yml/badge.svg)
+
+A modern, threaded and easily customizable Spring Boot Application that - given a means for collecting nodes - do something with them.
+
+Think about this as a template for your application.
+
+Pull requests are welcome!
+## Features
+- `QueryNodeCollector` collect nodes with Alfresco FTS queries
+- `NodeListCollector` reads node IDs from a file
+- `NodeTreeCollector` walks the repository tree
+- `DbTreeCollector` walks the Alfresco database tree using a recursive SQL query
+- `DeleteNodeProcessor` deletes or trashes nodes
+- `TrashcanNodeProcessor` processes items in the trashcan (delete or restore)
+- `MoveNodeProcessor` relocates nodes under a new parent
+- `AspectsAndPropertiesProcessor` updates aspects (add/remove) and properties (set/nullify)
+- `SetPermissionsProcessor` applies permissions and inheritance
+- `DownloadNodeProcessor` saves node content and metadata to the filesystem
+- `NormalizeMetadataProcessor` normalizes and copies metadata values
+- `ChainingNodeProcessor` executes multiple processors sequentially
+- Queue based architecture with configurable consumer threads
+- Easily extensible by implementing `AbstractNodeCollector` and `AbstractNodeProcessor`
+
+## Customize
+If none of the predefined Collectors/Processors meet your needs, simply write your own by extending the abstract ones. Just inject the required handlers (e.g., NodesApi) and override the relevant methods.
+### Collecting nodes
+#### QueryNodeCollector
+The QueryNodeCollector takes an Alfresco FTS query, execute it on a separate thread and feed the queue:
+```json
+"collector": {
+  "name": "QueryNodeCollector",
+  "args": {
+    "query": "PATH:'/app:company_home/*' AND TYPE:'cm:folder'"
+  }
+}
+```
+the default page size for search is `100` and can be modified by passing an additional argument to the collector:
+```json
+"batch-size": 1000
+```
+#### NodeListCollector
+The NodeListCollector takes an input file containing a list of node-id with each id on a separate line, e.g.:
+```
+e72b6596-ec2e-4279-b490-3a03b119d8de
+d78c0036-15c0-43cf-89e4-cd198d14b626
+1a7ecc34-de06-45ed-85c0-76f8355f3724
+```
+and the path of the file need to be specified in the config:
+```json
+  "collector": {
+      "name": "NodeListCollector",
+      "args": {
+        "node-list-file": "/tmp/node-ids.txt"
+      }
+  }
+```
+#### NodeTreeCollector
+Iteratively walk the tree starting from a folder node given either its id or its repository path:
+```json
+"collector": {
+  "name": "NodeTreeCollector",
+  "args": {
+    "path": "/"
+  }
+}
+```
+The collector automatically descends into folders.
+The default page size for listNodeChildren is `100` and can be modified by passing an additional argument to the collector:
+```json
+"batch-size": 200
+```
+#### DbTreeCollector
+Collect content node IDs by traversing an Alfresco folder hierarchy directly from the database, starting from a root folder node UUID.
+
+This collector uses a recursive SQL query, so it is useful for large trees where SOLR queries would be slower. It requires direct JDBC access to the Alfresco database:
+```json
+"collector": {
+  "name": "DbTreeCollector",
+  "args": {
+    "db-url": "jdbc:postgresql://localhost:5432/alfresco",
+    "db-user": "alfresco",
+    "db-password": "alfresco",
+    "root-node-id": "00000000-0000-0000-0000-000000000000"
+  }
+}
+```
+### Processing nodes
+#### DeleteNodeProcessor
+Delete the collected nodes, set the `permanent` flag to true if you want to delete the nodes directly rather than move them into the trashcan:
+```json
+"processor": {
+  "name": "DeleteNodeProcessor",
+  "args": {
+    "permanent": true
+  }
+}
+```     
+#### TrashcanNodeProcessor
+Process nodes collected from the trashcan. By default it permanently deletes each deleted node (`op=delete`), but it can also restore nodes to their original location (`op=restore`):
+```json
+"processor": {
+  "name": "TrashcanNodeProcessor",
+  "args": {
+    "op": "restore"
+  }
+}
+```
+#### AspectsAndPropertiesProcessor
+Add/remove aspects and apply a map of properties to the collected nodes.
+Properties set to `null` are explicitly cleared:
+```json
+"processor": {
+  "name": "AspectsAndPropertiesProcessor",
+  "args": {
+    "properties": {
+      "cm:publisher": "saidone",
+      "cm:contributor": "saidone",
+      "cm:title": null
+    },
+    "aspects": [
+      "cm:dublincore"
+    ],
+    "!aspects": [
+      "cm:versionable"
+    ]
+  }
+}
+```
+#### SetPermissionsProcessor
+Apply a list of permissions and set inheritance flag to the collected nodes:
+```json
+"processor": {
+  "name": "SetPermissionsProcessor",
+  "args": {
+    "permissions": {
+      "isInheritanceEnabled": false,
+      "locallySet": [
+        {
+          "authorityId": "GROUP_EVERYONE",
+          "name": "Collaborator",
+          "accessStatus": "ALLOWED"
+        }
+      ]
+    }
+  }
+}
+```
+#### MoveNodeProcessor
+Move collected nodes to a new folder identified either by its node-id or by the repository path:
+```json
+"processor": {
+  "name": "MoveNodeProcessor",
+  "args": {
+    "target-parent-id": "e72b6596-ec2e-4279-b490-3a03b119d8de"
+  }
+}
+```
+#### DownloadNodeProcessor
+Download node content and metadata to a local directory in a format compatible with bulk import:
+```json
+"processor": {
+  "name": "DownloadNodeProcessor",
+  "args": {
+    "output-dir": "/tmp/export"
+  }
+}
+```
+#### NormalizeMetadataProcessor
+Apply metadata normalization operations to one or more source properties. Operations are evaluated in order for each property and can use the output of previous operations.
+
+Supported operations are:
+- `trim`
+- `collapse-whitespace`
+- `case` with `value` set to `start`, `lower`, or `upper`
+- `regex` with `pattern` and optional `replace`
+- `copy-to` with `value` set to the target property name
+- `delete` to clear the current property
+- `parse-date-to` with `value` set to the target property name; accepts ISO-8601 (`Instant.parse`) and `yyyy-MM-dd HH:mm:ss.SSS|SS|S` (system default timezone)
+```json
+"processor": {
+  "name": "NormalizeMetadataProcessor",
+  "args": {
+    "cm:author": [
+      { "op": "trim" },
+      { "op": "collapse-whitespace" },
+      { "op": "case", "value": "lower" },
+      { "op": "regex", "pattern": "\\s+", "replace": " " },
+      { "op": "copy-to", "value": "cm:publisher" }
+    ],
+    "cm:title": [
+      { "op": "delete" }
+    ],
+    "cm:description": [
+      { "op": "parse-date-to", "value": "cm:from" }
+    ]
+  }
+}
+```
+
+Notes:
+- `copy-to` and `parse-date-to` write to the property specified by `value`.
+- Missing source properties are skipped.
+- Unknown operations are ignored and logged as warnings.
+#### ChainingNodeProcessor
+Execute a list of processors sequentially on each node:
+```json
+"processor": {
+  "name": "ChainingNodeProcessor",
+  "args": {
+    "processors": [
+      { "name": "LogNodeNameProcessor" },
+      { "name": "VoidProcessor" }
+    ]
+  }
+}
+```
+#### Custom processors
+Custom processors can be easily created by extending the AbstractNodeProcessor and overriding the `processNode` method:
+```java
+@Component
+@Slf4j
+public class LogNodeNameProcessor extends AbstractNodeProcessor {
+
+    @Autowired
+    private NodesApi nodesApi;
+
+    @Override
+    public void processNode(String nodeId, Config config) {
+        var node = Objects.requireNonNull(nodesApi.getNode(nodeId, null, null, null).getBody()).getEntry();
+        log.debug("node name --> {}", node.getName());
+    }
+
+}
+```
+## Build
+Java and Maven required
+
+`mvn package -DskipTests -Dlicense.skip=true`
+
+look at the `build.sh` or `build.bat` scripts for creating a convenient distribution package.
+## Application global config
+Global configuration is stored in `config/application.yml` file, the relevant parameters are:
+
+| Parameter/env variable | Key in `application.yml` | Default value | Purpose |
+|------------------------|--------------------------|---------------|--------------------------------------------------|
+| ALFRESCO_BASE_PATH     | `content.service.url` | http://localhost:8080 | scheme, host and port of the Alfresco server |
+| ALFRESCO_USERNAME      | `content.service.security.basicAuth.username` | admin | Alfresco user |
+| ALFRESCO_PASSWORD      | `content.service.security.basicAuth.password` | admin | password for the Alfresco user |
+| QUEUE_SIZE             | `application.queue-size` | 1000 | size of the node-uuid queue |
+| CONSUMER_THREADS       | `application.consumer-threads` | 4 | number of consumers that are executed simultaneously |
+| CONSUMER_TIMEOUT       | `application.consumer-timeout` | 5000 | milliseconds after which a consumer gives up waiting for data in the queue |
+| RATE_LIMIT_MS          | `application.rate-limit-ms` | 0 | pause in milliseconds after each processed node; actual pause is multiplied by consumer thread count |
+| READ_ONLY              | `application.read-only` | true | when true, mutating operations on nodes are skipped |
+## Testing
+For integration tests just change configuration and point it to an existing Alfresco installation, or use `alfresco.(sh|bat)` script to start it with docker.
+
+Just launch:
+
+`$ mvn test`
+
+that should issue something like:
+
+```bash
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 55.15 s -- in org.saidone.AlfrescoNodeProcessorIntegrationTests
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  56.341 s
+[INFO] Finished at: 2026-02-27T16:00:40+01:00
+[INFO] ------------------------------------------------------------------------
+```
+## Run
+`$ java -jar anp.jar -c example-log-node-name.json`
+## Further documentation
+
+See [Javadoc](https://saidone75.github.io/alfresco-node-processor/javadoc/)
+
+## License
+Copyright (c) 2023-2026 Saidone
+
+Distributed under the GNU General Public License v3.0

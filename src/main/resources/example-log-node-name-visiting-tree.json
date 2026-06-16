@@ -1,0 +1,12 @@
+{
+  "collector": {
+    "name": "NodeTreeCollector",
+    "args": {
+      "path": "/",
+      "batch-size": 100
+    }
+  },
+  "processor": {
+    "name": "LogNodeNameProcessor"
+  }
+}

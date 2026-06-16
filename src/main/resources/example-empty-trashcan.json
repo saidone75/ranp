@@ -1,0 +1,11 @@
+{
+  "collector": {
+    "name": "TrashcanNodeCollector"
+  },
+  "processor": {
+    "name": "TrashcanNodeProcessor",
+    "args": {
+      "op": "delete"
+    }
+  }
+}
