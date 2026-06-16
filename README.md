@@ -1,4 +1,4 @@
-# Alfresco Node Processor
+# Resilient Alfresco Node Processor
 _Giro... vedo nodi... faccio cose..._
 
 _Do things with nodes._
