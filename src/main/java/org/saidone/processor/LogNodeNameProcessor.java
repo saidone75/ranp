@@ -16,31 +16,32 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.saidone.collectors;
+package org.saidone.processor;
 
-import org.saidone.model.config.CollectorConfig;
-
-import java.util.concurrent.CompletableFuture;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
+import lombok.val;
+import org.saidone.model.config.ProcessorConfig;
+import org.springframework.stereotype.Component;
 
 /**
- * Contract for components able to collect node identifiers and push them into
- * the processing queue.
+ * Logs the name of each processed node.
  */
-public interface NodeCollector {
+@Component
+@Slf4j
+public class LogNodeNameProcessor extends AbstractNodeProcessor {
 
     /**
-     * Start collecting nodes asynchronously.
+     * Retrieves the node and logs its name.
      *
-     * @param config collector configuration
-     * @return future representing the asynchronous task
+     * @param nodeId id of the node
+     * @param config processor configuration
      */
-    CompletableFuture<Void> collect(CollectorConfig config);
-
-    /**
-     * Implementation specific node collection logic.
-     *
-     * @param config collector configuration
-     */
-    void collectNodes(CollectorConfig config);
+    @Override
+    @SneakyThrows
+    public void processNode(String nodeId, ProcessorConfig config) {
+        val node = getNode(nodeId);
+        log.debug("node name --> {}", node.getName());
+    }
 
 }

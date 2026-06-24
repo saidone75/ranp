@@ -16,7 +16,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.saidone.aspects;
+package org.saidone.aspect;
 
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;

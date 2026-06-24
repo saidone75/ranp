@@ -16,38 +16,31 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.saidone.collectors;
+package org.saidone.collector;
 
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
-import org.saidone.component.BaseComponent;
 import org.saidone.model.config.CollectorConfig;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.LinkedBlockingQueue;
 
 /**
- * Base implementation of {@link NodeCollector} providing queue injection and a
- * default asynchronous execution of {@link #collectNodes(CollectorConfig)}.
+ * Contract for components able to collect node identifiers and push them into
+ * the processing queue.
  */
-@Slf4j
-public abstract class AbstractNodeCollector extends BaseComponent implements NodeCollector {
-
-    @Autowired
-    LinkedBlockingQueue<String> queue;
+public interface NodeCollector {
 
     /**
-     * Collects nodes asynchronously by delegating to
-     * {@link #collectNodes(CollectorConfig)}.
+     * Start collecting nodes asynchronously.
      *
      * @param config collector configuration
      * @return future representing the asynchronous task
      */
-    @SneakyThrows
-    @Override
-    public CompletableFuture<Void> collect(CollectorConfig config) {
-        return CompletableFuture.runAsync(() -> collectNodes(config));
-    }
+    CompletableFuture<Void> collect(CollectorConfig config);
+
+    /**
+     * Implementation specific node collection logic.
+     *
+     * @param config collector configuration
+     */
+    void collectNodes(CollectorConfig config);
 
 }

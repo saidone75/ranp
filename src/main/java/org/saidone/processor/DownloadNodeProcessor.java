@@ -16,7 +16,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.saidone.processors;
+package org.saidone.processor;
 
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -29,7 +29,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.logging.log4j.util.Strings;
 import org.saidone.model.alfresco.ContentModel;
 import org.saidone.model.config.ProcessorConfig;
-import org.saidone.utils.CastUtils;
+import org.saidone.util.CastUtils;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 

@@ -26,6 +26,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
 import java.io.RandomAccessFile;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
@@ -44,7 +45,8 @@ public class LockService extends BaseComponent {
     private FileLock lock;
     private FileChannel channel;
     private RandomAccessFile randomFile;
-    private static final String LOCK_FILE = "/tmp/anp.lock";
+    private static final String TEMP_DIR = System.getProperty("java.io.tmpdir");
+    private static final String LOCK_FILE_PATH = new File(TEMP_DIR, "ranp.lock").getAbsolutePath();
 
     /**
      * Tries to acquire the process lock file as soon as the bean is initialized.
@@ -55,7 +57,7 @@ public class LockService extends BaseComponent {
     @PostConstruct
     public void acquireLock() {
         try {
-            randomFile = new RandomAccessFile(LOCK_FILE, "rw");
+            randomFile = new RandomAccessFile(LOCK_FILE_PATH, "rw");
             channel = randomFile.getChannel();
             lock = channel.tryLock();
             if (lock == null) {
