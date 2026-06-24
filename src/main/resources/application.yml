@@ -7,6 +7,23 @@ spring:
   cloud:
     compatibility-verifier:
       enabled: false
+  datasource:
+    url: ${PROD_SQLITE_DB_URL:jdbc:sqlite:./data/quizmaker.db}
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 1
+      minimum-idle: 1
+      connection-timeout: 30000
+  jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+  h2:
+    console:
+      enabled: false
+  liquibase:
+    enabled: ${LIQUIBASE_ENABLED:true}
 content:
   service:
     url: ${ALFRESCO_BASE_PATH:http://localhost:8080}
