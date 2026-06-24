@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Collects node identifiers from Alfresco trashcan and enqueues them.
+ * Collects node identifiers from Alfresco trashcan and stores them.
  */
 @Component
 @RequiredArgsConstructor
@@ -42,7 +42,7 @@ public class TrashcanNodeCollector extends AbstractNodeCollector {
     private final TrashcanApi trashcanApi;
 
     /**
-     * Lists deleted nodes from Alfresco trashcan in batches and enqueues each
+     * Lists deleted nodes from Alfresco trashcan in batches and stores each
      * returned node identifier.
      *
      * @param config collector configuration
@@ -56,12 +56,7 @@ public class TrashcanNodeCollector extends AbstractNodeCollector {
             log.debug("skipCount --> {}", skipCount);
             deletedNodesPaging = trashcanApi.listDeletedNodes(skipCount, batchSize, List.of("id")).getBody();
             for (val entry : Objects.requireNonNull(deletedNodesPaging).getList().getEntries()) {
-                try {
-                    queue.put(entry.getEntry().getId());
-                } catch (InterruptedException e) {
-                    log.trace(e.getMessage(), e);
-                    log.warn(e.getMessage());
-                }
+                collectNode(entry.getEntry().getId());
             }
             skipCount += batchSize;
         } while (!deletedNodesPaging.getList().getEntries().isEmpty());

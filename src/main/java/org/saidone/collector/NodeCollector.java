@@ -23,8 +23,8 @@ import org.saidone.model.config.CollectorConfig;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Contract for components able to collect node identifiers and push them into
- * the processing queue.
+ * Contract for components able to collect node identifiers and store them in
+ * the processing repository.
  */
 public interface NodeCollector {
 

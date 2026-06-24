@@ -32,7 +32,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Executes an Alfresco FTS query and enqueues the resulting node identifiers.
+ * Executes an Alfresco FTS query and stores the resulting node identifiers.
  */
 @Component
 @RequiredArgsConstructor
@@ -73,7 +73,7 @@ public class QueryNodeCollector extends AbstractNodeCollector {
             log.debug("skipCount --> {}", skipCount);
             resultSetPaging = search(query, skipCount);
             for (val e : resultSetPaging.getList().getEntries()) {
-                queue.put(e.getEntry().getId());
+                collectNode(e.getEntry().getId());
             }
             skipCount += batchSize;
         } while (resultSetPaging.getList().getPagination().isHasMoreItems());
@@ -81,7 +81,7 @@ public class QueryNodeCollector extends AbstractNodeCollector {
     }
 
     /**
-     * Executes the configured Alfresco FTS query and enqueues each returned
+     * Executes the configured Alfresco FTS query and stores each returned
      * node identifier.
      *
      * @param config collector configuration
