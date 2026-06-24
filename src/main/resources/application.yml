@@ -7,6 +7,10 @@ spring:
   cloud:
     compatibility-verifier:
       enabled: false
+    openfeign:
+      autoconfiguration:
+        jackson:
+          enabled: false
   datasource:
     url: ${PROD_SQLITE_DB_URL:jdbc:sqlite:./data/quizmaker.db}
     driver-class-name: org.sqlite.JDBC
