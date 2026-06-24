@@ -7,6 +7,28 @@ spring:
   cloud:
     compatibility-verifier:
       enabled: false
+    openfeign:
+      autoconfiguration:
+        jackson:
+          enabled: false
+  datasource:
+    url: ${PROD_SQLITE_DB_URL:jdbc:sqlite:./ranp.db}
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      maximum-pool-size: 1
+      minimum-idle: 1
+      connection-timeout: 30000
+  jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+  h2:
+    console:
+      enabled: false
+  liquibase:
+    enabled: ${LIQUIBASE_ENABLED:true}
+    change-log: classpath:/db/changelog/db.changelog-master.xml
 content:
   service:
     url: ${ALFRESCO_BASE_PATH:http://localhost:8080}
