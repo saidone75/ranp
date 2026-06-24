@@ -40,7 +40,7 @@ public class NodeListCollector extends AbstractNodeCollector {
 
     /**
      * Reads node identifiers from the file specified by the
-     * {@code node-list-file} argument and enqueues them for processing.
+     * {@code node-list-file} argument and stores them for processing.
      *
      * @param config collector configuration
      */
@@ -49,9 +49,9 @@ public class NodeListCollector extends AbstractNodeCollector {
         if (Strings.isNotBlank((String) config.getArg(NODE_LIST_ARG))) {
             try {
                 for (val i : Files.readAllLines(new File((String) config.getArg(NODE_LIST_ARG)).toPath())) {
-                    queue.put(i);
+                    collectNode(i);
                 }
-            } catch (InterruptedException | IOException e) {
+            } catch (IOException e) {
                 log.trace(e.getMessage(), e);
                 log.warn(e.getMessage());
             }

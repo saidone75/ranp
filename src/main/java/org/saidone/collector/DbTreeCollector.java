@@ -32,7 +32,7 @@ import java.sql.SQLException;
  * <p>
  * This collector uses a recursive SQL query to traverse the folder hierarchy
  * starting from a specified root node and collects all content nodes within
- * that tree. The collected node UUIDs are enqueued for processing.
+ * that tree. The collected node UUIDs are stored for processing.
  * <p>
  * Required configuration arguments:
  * <ul>
@@ -88,18 +88,15 @@ public class DbTreeCollector extends AbstractNodeCollector {
             pstmt.setString(1, rootUuid);
             try (val rs = pstmt.executeQuery()) {
                 while (rs.next()) {
-                    queue.put(rs.getString("uuid"));
+                    collectNode(rs.getString("uuid"));
                     counter++;
                     if (counter % 10_000 == 0) {
-                        log.info("Queued {} UUIDs from DB tree so far", counter);
+                        log.info("Stored {} UUIDs from DB tree so far", counter);
                     }
                 }
             }
             conn.commit();
-            log.info("Total UUIDs extracted from DB and queued: {}", counter);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            log.warn("DB tree extraction interrupted after {} UUIDs: {}", counter, e.getMessage());
+            log.info("Total UUIDs extracted from DB and stored: {}", counter);
         } catch (SQLException e) {
             log.error("Error during DB tree extraction after {} UUIDs: {}", counter, e.getMessage(), e);
         }

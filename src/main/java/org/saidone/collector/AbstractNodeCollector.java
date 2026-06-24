@@ -21,21 +21,23 @@ package org.saidone.collector;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.saidone.component.BaseComponent;
+import org.saidone.entity.Document;
 import org.saidone.model.config.CollectorConfig;
+import org.saidone.repository.DocumentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.LinkedBlockingQueue;
 
 /**
- * Base implementation of {@link NodeCollector} providing queue injection and a
- * default asynchronous execution of {@link #collectNodes(CollectorConfig)}.
+ * Base implementation of {@link NodeCollector} providing repository storage and
+ * a default asynchronous execution of {@link #collectNodes(CollectorConfig)}.
  */
 @Slf4j
 public abstract class AbstractNodeCollector extends BaseComponent implements NodeCollector {
 
     @Autowired
-    LinkedBlockingQueue<String> queue;
+    private DocumentRepository documentRepository;
 
     /**
      * Collects nodes asynchronously by delegating to
@@ -48,6 +50,25 @@ public abstract class AbstractNodeCollector extends BaseComponent implements Nod
     @Override
     public CompletableFuture<Void> collect(CollectorConfig config) {
         return CompletableFuture.runAsync(() -> collectNodes(config));
+    }
+
+    /**
+     * Stores a collected node identifier in the persistent repository.
+     * <p>
+     * Existing identifiers are left untouched so collectors do not reset a
+     * processor-managed status when the same node is discovered more than once.
+     *
+     * @param nodeId Alfresco node id to persist
+     */
+    protected void collectNode(String nodeId) {
+        if (nodeId == null || documentRepository.existsById(nodeId)) {
+            return;
+        }
+        try {
+            documentRepository.save(new Document(nodeId));
+        } catch (DataIntegrityViolationException e) {
+            log.debug("Node {} was already stored by another collector", nodeId);
+        }
     }
 
 }

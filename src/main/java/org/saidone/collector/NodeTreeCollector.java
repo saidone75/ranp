@@ -56,7 +56,7 @@ public class NodeTreeCollector extends AbstractNodeCollector {
         }
     }
 
-    private void processNodeChildren(String nodeId, Deque<String> nodeStack) throws InterruptedException {
+    private void processNodeChildren(String nodeId, Deque<String> nodeStack) {
         int skipCount = 0;
         NodeChildAssociationPaging children;
         do {
@@ -68,7 +68,7 @@ public class NodeTreeCollector extends AbstractNodeCollector {
                 if (child.isIsFolder()) {
                     nodeStack.push(child.getId());
                 } else {
-                    queue.put(child.getId());
+                    collectNode(child.getId());
                 }
             }
             skipCount += batchSize;
@@ -77,7 +77,7 @@ public class NodeTreeCollector extends AbstractNodeCollector {
 
     /**
      * Traverses the node tree starting from the root defined by
-     * {@code node-id} or {@code path} arguments and queues descendant node
+     * {@code node-id} or {@code path} arguments and stores descendant node
      * identifiers.
      *
      * @param config collector configuration
