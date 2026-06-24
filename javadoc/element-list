@@ -1,10 +1,12 @@
 org.saidone
-org.saidone.aspects
-org.saidone.collectors
+org.saidone.aspect
+org.saidone.collector
 org.saidone.component
+org.saidone.entity
 org.saidone.misc
 org.saidone.model.alfresco
 org.saidone.model.config
-org.saidone.processors
+org.saidone.processor
 org.saidone.service
-org.saidone.utils
+org.saidone.util
+repository
