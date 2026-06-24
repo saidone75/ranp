@@ -16,7 +16,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.saidone.processors;
+package org.saidone.processor;
 
 import feign.FeignException;
 import lombok.SneakyThrows;

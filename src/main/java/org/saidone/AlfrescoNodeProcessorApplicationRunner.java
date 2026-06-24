@@ -20,12 +20,11 @@ package org.saidone;
 
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
-import org.apache.logging.log4j.util.Strings;
-import org.saidone.collectors.NodeCollector;
+import org.saidone.collector.NodeCollector;
 import org.saidone.component.BaseComponent;
-import org.saidone.processors.NodeProcessor;
-import org.saidone.utils.AlfrescoNodeProcessorUtils;
-import org.saidone.utils.AnpCommandLineParser;
+import org.saidone.processor.NodeProcessor;
+import org.saidone.util.AlfrescoNodeProcessorUtils;
+import org.saidone.util.AnpCommandLineParser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;

@@ -16,32 +16,33 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.saidone.processors;
+package org.saidone.processor;
 
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import lombok.val;
 import org.saidone.model.config.ProcessorConfig;
 import org.springframework.stereotype.Component;
 
 /**
- * Logs the name of each processed node.
+ * Deletes each node passed to the processor.
  */
 @Component
 @Slf4j
-public class LogNodeNameProcessor extends AbstractNodeProcessor {
+public class DeleteNodeProcessor extends AbstractNodeProcessor {
 
     /**
-     * Retrieves the node and logs its name.
+     * Deletes the node identified by {@code nodeId}.
      *
-     * @param nodeId id of the node
+     * @param nodeId id of the node to delete
      * @param config processor configuration
      */
     @Override
     @SneakyThrows
     public void processNode(String nodeId, ProcessorConfig config) {
-        val node = getNode(nodeId);
-        log.debug("node name --> {}", node.getName());
+        log.debug("deleting node --> {}", nodeId);
+        if (!readOnly) {
+            nodesApi.deleteNode(nodeId, config.getArg("permanent") != null ? (Boolean) config.getArg("permanent") : false);
+        }
     }
 
 }
