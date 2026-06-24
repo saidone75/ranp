@@ -7,6 +7,6 @@ org.saidone.misc
 org.saidone.model.alfresco
 org.saidone.model.config
 org.saidone.processor
+org.saidone.repository
 org.saidone.service
 org.saidone.util
-repository
