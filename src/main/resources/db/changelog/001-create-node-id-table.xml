@@ -25,7 +25,7 @@
             </column>
         </createTable>
 
-        <createIndex tableName="migration_node_ids" indexName="idx_migration_node_ids_status">
+        <createIndex tableName="node_ids" indexName="idx_node_ids_status">
             <column name="status"/>
         </createIndex>
     </changeSet>
