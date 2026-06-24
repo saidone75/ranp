@@ -1,4 +1,4 @@
-package repository;
+package org.saidone.repository;
 
 import org.saidone.entity.Document;
 import org.springframework.data.jpa.repository.JpaRepository;

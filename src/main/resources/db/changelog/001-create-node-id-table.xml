@@ -5,7 +5,7 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <changeSet id="001-create-node-id-table" author="tai">
+    <changeSet id="001-create-node-id-table" author="saidone">
         <createTable tableName="node_ids">
             <column name="node_id" type="VARCHAR(36)">
                 <constraints nullable="false" primaryKey="true"/>
@@ -17,10 +17,10 @@
                 <constraints nullable="false"/>
             </column>
             <column name="last_error" type="VARCHAR(1000)"/>
-            <column name="created_at" type="DATETIME" defaultValueComputed="CURRENT_DATETIME">
+            <column name="created_at" type="DATETIME" defaultValueComputed="CURRENT_TIMESTAMP">
                 <constraints nullable="false"/>
             </column>
-            <column name="updated_at" type="DATETIME" defaultValueComputed="CURRENT_DATETIME">
+            <column name="updated_at" type="DATETIME" defaultValueComputed="CURRENT_TIMESTAMP">
                 <constraints nullable="false"/>
             </column>
         </createTable>

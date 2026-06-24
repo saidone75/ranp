@@ -3,8 +3,9 @@ package org.saidone.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.val;
 
-import java.sql.Date;
+import java.time.Instant;
 
 @Entity
 @Table(name = "node_ids")
@@ -26,10 +27,10 @@ public class Document {
     private String lastError;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private Date createdAt;
+    private Instant createdAt;
 
     @Column(name = "updated_at", nullable = false)
-    private Date updatedAt;
+    private Instant updatedAt;
 
     public Document(String nodeId) {
         this.nodeId = nodeId;
@@ -37,13 +38,14 @@ public class Document {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = new Date(System.currentTimeMillis());
-        updatedAt = new Date(System.currentTimeMillis());
+        val instant = Instant.now();
+        setCreatedAt(instant);
+        setUpdatedAt(instant);
     }
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = new Date(System.currentTimeMillis());
+        setUpdatedAt(Instant.now());
     }
 
     public void increaseRetryCount() {
