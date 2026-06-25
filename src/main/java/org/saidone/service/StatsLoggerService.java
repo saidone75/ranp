@@ -21,18 +21,19 @@ package org.saidone.service;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.saidone.component.BaseComponent;
+import org.saidone.entity.Document;
+import org.saidone.repository.DocumentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Periodically logs statistics about queued and processed nodes.
+ * Periodically logs statistics about persisted and processed nodes.
  */
 @ConditionalOnProperty(prefix = "application.stats-service", name = "enabled", havingValue = "true")
 @Service
@@ -40,7 +41,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class StatsLoggerService extends BaseComponent {
 
     @Autowired
-    private LinkedBlockingQueue<String> queue;
+    private DocumentRepository documentRepository;
 
     @Autowired
     private AtomicInteger processedNodesCounter;
@@ -57,7 +58,8 @@ public class StatsLoggerService extends BaseComponent {
         return CompletableFuture.runAsync(() -> {
             /* will terminate on JVM shutdown  */
             while (true) {
-                log.debug("queued nodes --> {}", queue.size());
+                log.debug("pending nodes --> {}", documentRepository.countByStatus(Document.STATUS_PENDING));
+                log.debug("failed nodes --> {}", documentRepository.countByStatus(Document.STATUS_FAILED));
                 log.info("processed nodes --> {}", processedNodesCounter.get());
                 try {
                     TimeUnit.SECONDS.sleep(printInterval);

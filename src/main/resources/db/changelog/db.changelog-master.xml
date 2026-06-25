@@ -6,4 +6,5 @@
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <include file="db/changelog/001-create-node-id-table.xml"/>
+    <include file="db/changelog/002-add-node-id-retry-index.xml"/>
 </databaseChangeLog>

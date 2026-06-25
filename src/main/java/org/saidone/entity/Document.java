@@ -13,12 +13,17 @@ import java.time.Instant;
 @Data
 public class Document {
 
+    public static final String STATUS_PENDING = "PENDING";
+    public static final String STATUS_PROCESSING = "PROCESSING";
+    public static final String STATUS_COMPLETED = "COMPLETED";
+    public static final String STATUS_FAILED = "FAILED";
+
     @Id
     @Column(name = "node_id", length = 36)
     private String nodeId;
 
     @Column(name = "status", length = 16, nullable = false)
-    private String status = "PENDING";
+    private String status = STATUS_PENDING;
 
     @Column(name = "retry_count", nullable = false)
     private Integer retryCount = 0;

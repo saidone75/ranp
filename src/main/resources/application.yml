@@ -41,6 +41,8 @@ application:
   consumer-threads: ${CONSUMER_THREADS:4}
   consumer-timeout: ${CONSUMER_TIMEOUT:5000}
   rate-limit-ms: ${RATE_LIMIT_MS:0}
+  processor-retry-delay-seconds: ${PROCESSOR_RETRY_DELAY_SECONDS:0}
+  processor-max-retry-count: ${PROCESSOR_MAX_RETRY_COUNT:5}
   read-only: ${READ_ONLY:true}
   stats-service:
     enabled: true

@@ -96,13 +96,13 @@ public class AlfrescoNodeProcessorApplicationRunner extends BaseComponent implem
         val collector = (NodeCollector) context.getBean(StringUtils.uncapitalize(config.getCollector().getName()));
         nodeCollectors.add(collector.collect(config.getCollector()));
 
-        // consumer(s)
-        val processor = (NodeProcessor) context.getBean(StringUtils.uncapitalize(config.getProcessor().getName()));
-        IntStream.range(0, consumerThreads).forEach(i -> nodeProcessors.add(processor.process(config.getProcessor())));
-
-        // wait for all threads to complete
+        // wait for all collectors to populate the repository
         try {
             CompletableFuture.allOf(nodeCollectors.toArray(new CompletableFuture[0])).get();
+
+            // consumer(s)
+            val processor = (NodeProcessor) context.getBean(StringUtils.uncapitalize(config.getProcessor().getName()));
+            IntStream.range(0, consumerThreads).forEach(i -> nodeProcessors.add(processor.process(config.getProcessor())));
             CompletableFuture.allOf(nodeProcessors.toArray(new CompletableFuture[0])).get();
         } catch (ExecutionException | InterruptedException e) {
             log.trace(e.getMessage(), e);

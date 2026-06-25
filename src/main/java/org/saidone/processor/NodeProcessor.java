@@ -23,7 +23,7 @@ import org.saidone.model.config.ProcessorConfig;
 import java.util.concurrent.CompletableFuture;
 
 /**
- * Component that performs an operation on nodes retrieved from the queue.
+ * Component that performs an operation on nodes retrieved from the repository.
  */
 public interface NodeProcessor {
 

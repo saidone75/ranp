@@ -28,8 +28,6 @@ import org.saidone.model.config.CollectorConfig;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * Executes an Alfresco FTS query and stores the resulting node identifiers.
@@ -47,8 +45,6 @@ public class QueryNodeCollector extends AbstractNodeCollector {
     }
 
     private final SearchApi searchApi;
-
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     @SneakyThrows
     private ResultSetPaging search(String query, int skipCount) {
@@ -89,7 +85,7 @@ public class QueryNodeCollector extends AbstractNodeCollector {
     @Override
     public void collectNodes(CollectorConfig config) {
         if (config.getArg("batch-size") != null) this.batchSize = (int) config.getArg("batch-size");
-        executor.submit(() -> doQuery((String) config.getArg("query")));
+        doQuery((String) config.getArg("query"));
     }
 
 }
