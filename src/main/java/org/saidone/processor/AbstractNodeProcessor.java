@@ -24,19 +24,19 @@ import org.alfresco.core.handler.NodesApi;
 import org.alfresco.core.model.Node;
 import org.saidone.component.BaseComponent;
 import org.saidone.model.config.ProcessorConfig;
+import org.saidone.service.DocumentProcessingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Base implementation of {@link NodeProcessor} that consumes node identifiers
- * from a shared queue and delegates the concrete operation to
+ * from the persistent repository and delegates the concrete operation to
  * {@link #processNode(String, ProcessorConfig)}.
  * <p>
  * Subclasses typically use the {@link #getNode(String)} helper methods to
@@ -47,13 +47,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 public abstract class AbstractNodeProcessor extends BaseComponent implements NodeProcessor {
 
     @Autowired
-    private LinkedBlockingQueue<String> queue;
-
-    @Autowired
     private AtomicInteger processedNodesCounter;
 
     @Autowired
     protected NodesApi nodesApi;
+
+    @Autowired
+    private DocumentProcessingService documentProcessingService;
 
     @Value("${application.consumer-threads}")
     private int consumerThreads;
@@ -61,48 +61,46 @@ public abstract class AbstractNodeProcessor extends BaseComponent implements Nod
     @Value("${application.rate-limit-ms:0}")
     private long rateLimitMs;
 
-    @Value("${application.consumer-timeout}")
-    private long consumerTimeout;
+    @Value("${application.processor-retry-delay-seconds:0}")
+    private long processorRetryDelaySeconds;
+
+    @Value("${application.processor-max-retry-count:5}")
+    private int processorMaxRetryCount;
 
     @Value("${application.read-only:true}")
     protected boolean readOnly;
 
     /**
-     * Starts asynchronous consumption of node identifiers from the queue.
+     * Starts asynchronous consumption of processable node identifiers from the repository.
      * <p>
-     * Processing stops when polling times out and no further node id is
+     * Processing stops when no pending or retryable failed node id is
      * available. Each successfully processed node increments the shared
      * counter and optionally waits according to the configured rate limit.
      *
      * @param config processor-specific configuration used by
      *               {@link #processNode(String, ProcessorConfig)}
      * @return future representing the asynchronous processing task
-     * @throws RuntimeException if the processing thread is interrupted while
-     *                          waiting for the next node id
      */
     @SneakyThrows
     public CompletableFuture<Void> process(ProcessorConfig config) {
         return CompletableFuture.runAsync(() -> {
             while (true) {
-                String nodeId;
+                var document = documentProcessingService.claimNext(processorMaxRetryCount, processorRetryDelaySeconds);
+                if (document.isEmpty()) {
+                    break;
+                }
+
+                var nodeId = document.get().getNodeId();
                 try {
-                    nodeId = queue.poll(consumerTimeout, TimeUnit.MILLISECONDS);
-                } catch (InterruptedException e) {
+                    processNode(nodeId, config);
+                    documentProcessingService.markCompleted(nodeId);
+                    processedNodesCounter.incrementAndGet();
+                    sleep();
+                } catch (Exception e) {
                     log.trace(e.getMessage(), e);
                     log.error(e.getMessage());
-                    throw new RuntimeException(e);
-                }
-                if (nodeId == null) break;
-                else {
-                    // do things with the node
-                    try {
-                        processNode(nodeId, config);
-                        processedNodesCounter.incrementAndGet();
-                        sleep();
-                    } catch (Exception e) {
-                        log.trace(e.getMessage(), e);
-                        log.error(e.getMessage());
-                    }
+                    documentProcessingService.markFailed(nodeId, e);
+                    sleep();
                 }
             }
         });
