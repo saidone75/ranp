@@ -67,6 +67,9 @@ public abstract class AbstractNodeProcessor extends BaseComponent implements Nod
     @Value("${application.processor-max-retry-count:5}")
     private int processorMaxRetryCount;
 
+    @Value("${application.processor-batch-size:10}")
+    private int processorBatchSize;
+
     @Value("${application.read-only:true}")
     protected boolean readOnly;
 
@@ -85,23 +88,28 @@ public abstract class AbstractNodeProcessor extends BaseComponent implements Nod
     public CompletableFuture<Void> process(ProcessorConfig config) {
         return CompletableFuture.runAsync(() -> {
             while (true) {
-                var document = documentProcessingService.claimNext(processorMaxRetryCount, processorRetryDelaySeconds);
-                if (document.isEmpty()) {
+                var documents = documentProcessingService.claimNextBatch(
+                        processorMaxRetryCount,
+                        processorRetryDelaySeconds,
+                        processorBatchSize);
+                if (documents.isEmpty()) {
                     break;
                 }
 
-                var nodeId = document.get().getNodeId();
-                try {
-                    processNode(nodeId, config);
-                    documentProcessingService.markCompleted(nodeId);
-                    processedNodesCounter.incrementAndGet();
-                    sleep();
-                } catch (Exception e) {
-                    log.trace(e.getMessage(), e);
-                    log.error(e.getMessage());
-                    documentProcessingService.markFailed(nodeId, e);
-                    sleep();
-                }
+                documents.forEach(document -> {
+                    var nodeId = document.getNodeId();
+                    try {
+                        processNode(nodeId, config);
+                        documentProcessingService.markCompleted(nodeId);
+                        processedNodesCounter.incrementAndGet();
+                        sleep();
+                    } catch (Exception e) {
+                        log.trace(e.getMessage(), e);
+                        log.error(e.getMessage());
+                        documentProcessingService.markFailed(nodeId, e);
+                        sleep();
+                    }
+                });
             }
         });
     }

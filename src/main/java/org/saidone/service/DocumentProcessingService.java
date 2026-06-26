@@ -20,10 +20,13 @@ package org.saidone.service;
 
 import org.saidone.entity.Document;
 import org.saidone.repository.DocumentRepository;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -47,17 +50,36 @@ public class DocumentProcessingService {
      */
     @Transactional
     public synchronized Optional<Document> claimNext(int maxRetryCount, long retryDelaySeconds) {
-        var document = documentRepository.findFirstByStatusOrderByUpdatedAtAsc(Document.STATUS_PENDING)
-                .or(() -> documentRepository.findFirstByStatusAndRetryCountLessThanAndUpdatedAtBeforeOrderByUpdatedAtAsc(
-                        Document.STATUS_FAILED,
-                        maxRetryCount,
-                        Instant.now().minusSeconds(retryDelaySeconds)));
-        document.ifPresent(d -> {
+        return claimNextBatch(maxRetryCount, retryDelaySeconds, 1).stream().findFirst();
+    }
+
+    /**
+     * Claims the next processable documents in a single repository round-trip per
+     * status, preferring never-processed nodes and filling the remaining slots with
+     * retryable failures whose delay has elapsed.
+     */
+    @Transactional
+    public synchronized List<Document> claimNextBatch(int maxRetryCount, long retryDelaySeconds, int batchSize) {
+        var safeBatchSize = Math.max(1, batchSize);
+        var documents = new ArrayList<Document>(safeBatchSize);
+
+        documents.addAll(documentRepository.findByStatusOrderByUpdatedAtAsc(
+                Document.STATUS_PENDING, PageRequest.of(0, safeBatchSize)));
+
+        var remaining = safeBatchSize - documents.size();
+        if (remaining > 0) {
+            documents.addAll(documentRepository.findByStatusAndRetryCountLessThanAndUpdatedAtBeforeOrderByUpdatedAtAsc(
+                    Document.STATUS_FAILED,
+                    maxRetryCount,
+                    Instant.now().minusSeconds(retryDelaySeconds),
+                    PageRequest.of(0, remaining)));
+        }
+
+        documents.forEach(d -> {
             d.setStatus(Document.STATUS_PROCESSING);
             d.setLastError(null);
-            documentRepository.save(d);
         });
-        return document;
+        return documentRepository.saveAll(documents);
     }
 
     @Transactional

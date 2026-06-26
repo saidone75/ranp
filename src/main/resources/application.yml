@@ -43,6 +43,7 @@ application:
   rate-limit-ms: ${RATE_LIMIT_MS:0}
   processor-retry-delay-seconds: ${PROCESSOR_RETRY_DELAY_SECONDS:0}
   processor-max-retry-count: ${PROCESSOR_MAX_RETRY_COUNT:5}
+  processor-batch-size: ${PROCESSOR_BATCH_SIZE:10}
   read-only: ${READ_ONLY:true}
   stats-service:
     enabled: true
