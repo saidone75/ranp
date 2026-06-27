@@ -18,6 +18,7 @@
 
 package org.saidone.service;
 
+import lombok.val;
 import org.saidone.entity.Document;
 import org.saidone.repository.DocumentRepository;
 import org.springframework.data.domain.PageRequest;
@@ -60,13 +61,13 @@ public class DocumentProcessingService {
      */
     @Transactional
     public synchronized List<Document> claimNextBatch(int maxRetryCount, long retryDelaySeconds, int batchSize) {
-        var safeBatchSize = Math.max(1, batchSize);
-        var documents = new ArrayList<Document>(safeBatchSize);
+        val safeBatchSize = Math.max(1, batchSize);
+        val documents = new ArrayList<Document>(safeBatchSize);
 
         documents.addAll(documentRepository.findByStatusOrderByUpdatedAtAsc(
                 Document.STATUS_PENDING, PageRequest.of(0, safeBatchSize)));
 
-        var remaining = safeBatchSize - documents.size();
+        val remaining = safeBatchSize - documents.size();
         if (remaining > 0) {
             documents.addAll(documentRepository.findByStatusAndRetryCountLessThanAndUpdatedAtBeforeOrderByUpdatedAtAsc(
                     Document.STATUS_FAILED,
