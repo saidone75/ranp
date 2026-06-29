@@ -1,5 +1,5 @@
 /*
- *  Alfresco Node Processor - Do things with nodes
+ *  Alfresco Resilient Node Processor - Do things with nodes
  *  Copyright (C) 2023-2026 Saidone
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -20,6 +20,7 @@ package org.saidone.processor;
 
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import lombok.val;
 import org.alfresco.core.handler.NodesApi;
 import org.alfresco.core.model.Node;
 import org.saidone.component.BaseComponent;
@@ -88,25 +89,24 @@ public abstract class AbstractNodeProcessor extends BaseComponent implements Nod
     public CompletableFuture<Void> process(ProcessorConfig config) {
         return CompletableFuture.runAsync(() -> {
             while (true) {
-                var documents = documentProcessingService.claimNextBatch(
+                val documents = documentProcessingService.claimNextBatch(
                         processorMaxRetryCount,
                         processorRetryDelaySeconds,
                         processorBatchSize);
                 if (documents.isEmpty()) {
                     break;
                 }
-
                 documents.forEach(document -> {
                     var nodeId = document.getNodeId();
                     try {
                         processNode(nodeId, config);
                         documentProcessingService.markCompleted(nodeId);
                         processedNodesCounter.incrementAndGet();
-                        sleep();
                     } catch (Exception e) {
                         log.trace(e.getMessage(), e);
                         log.error(e.getMessage());
                         documentProcessingService.markFailed(nodeId, e);
+                    } finally {
                         sleep();
                     }
                 });
