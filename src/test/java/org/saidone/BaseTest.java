@@ -1,5 +1,5 @@
 /*
- *  Alfresco Node Processor - Do things with nodes
+ *  Alfresco Resilient Node Processor - Do things with nodes
  *  Copyright (C) 2023-2026 Saidone
  *
  *  This program is free software: you can redistribute it and/or modify
