@@ -58,6 +58,9 @@ public abstract class AbstractNodeProcessor extends BaseComponent implements Nod
     @Value("${application.rate-limit-ms:0}")
     private long rateLimitMs;
 
+    @Value("${application.consumer-timeout:5000}")
+    private long consumerTimeout;
+
     @Value("${application.processor-retry-delay-seconds:0}")
     private long processorRetryDelaySeconds;
 
@@ -73,8 +76,11 @@ public abstract class AbstractNodeProcessor extends BaseComponent implements Nod
     /**
      * Starts asynchronous consumption of processable node identifiers from the repository.
      * <p>
-     * Processing stops when no pending or retryable failed node id is
-     * available. Each claimed document is marked completed or failed after
+     * Processing claims pending or retryable failed node ids until no work is
+     * available for the configured consumer timeout. When the timeout is set
+     * to {@code 0}, the consumer keeps polling forever and stops only when the
+     * worker is interrupted, for example during application shutdown after
+     * Ctrl-C. Each claimed document is marked completed or failed after
      * processing, then the worker optionally waits according to the configured
      * rate limit.
      *
@@ -85,14 +91,20 @@ public abstract class AbstractNodeProcessor extends BaseComponent implements Nod
     @SneakyThrows
     public CompletableFuture<Void> process(ProcessorConfig config) {
         return CompletableFuture.runAsync(() -> {
-            while (true) {
+            var idleSince = 0L;
+            while (!Thread.currentThread().isInterrupted()) {
                 val documents = documentProcessingService.claimNextBatch(
                         processorMaxRetryCount,
                         processorRetryDelaySeconds,
                         processorBatchSize);
                 if (documents.isEmpty()) {
-                    break;
+                    idleSince = waitForMoreWorkOrTimeout(idleSince);
+                    if (idleSince < 0) {
+                        break;
+                    }
+                    continue;
                 }
+                idleSince = 0L;
                 documents.forEach(document -> {
                     var nodeId = document.getNodeId();
                     try {
@@ -162,7 +174,45 @@ public abstract class AbstractNodeProcessor extends BaseComponent implements Nod
         if (rateLimitMs <= 0) {
             return;
         }
-        TimeUnit.MILLISECONDS.sleep(Math.max(1, consumerThreads) * rateLimitMs);
+        interruptibleSleep(Math.max(1, consumerThreads) * rateLimitMs);
+    }
+
+    /**
+     * Waits before checking the repository again after an idle claim attempt,
+     * or signals that the configured idle timeout has elapsed.
+     *
+     * @param idleSince first timestamp, in milliseconds, when the worker became idle
+     * @return updated idle timestamp, or {@code -1} when the worker should stop
+     */
+    private long waitForMoreWorkOrTimeout(long idleSince) {
+        if (consumerTimeout <= 0) {
+            interruptibleSleep(1000);
+            return 0L;
+        }
+
+        val now = System.currentTimeMillis();
+        val startedAt = idleSince == 0L ? now : idleSince;
+        val elapsed = now - startedAt;
+        if (elapsed >= consumerTimeout) {
+            return -1L;
+        }
+
+        interruptibleSleep(Math.min(1000, consumerTimeout - elapsed));
+        return startedAt;
+    }
+
+    /**
+     * Sleeps for the requested delay while preserving interruption requests so
+     * application shutdown can stop consumers cleanly.
+     *
+     * @param delayMillis delay in milliseconds
+     */
+    private void interruptibleSleep(long delayMillis) {
+        try {
+            TimeUnit.MILLISECONDS.sleep(delayMillis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
 }

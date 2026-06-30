@@ -1,3 +1,4 @@
 application:
   test-root-folder: '/Guest Home'
   read-only: false
+  consumer-timeout: 1

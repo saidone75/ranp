@@ -37,7 +37,6 @@ import org.springframework.util.StringUtils;
 import java.util.LinkedList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
 /**
@@ -94,14 +93,10 @@ public class AlfrescoNodeProcessorApplicationRunner extends BaseComponent implem
             log.warn("READ-WRITE mode");
         }
 
-        // producer(s)
-        val collector = (NodeCollector) context.getBean(StringUtils.uncapitalize(config.getCollector().getName()));
-        nodeCollectors.add(collector.collect(config.getCollector()));
-
-        // wait for all collectors to populate the repository
         try {
-            CompletableFuture.allOf(nodeCollectors.toArray(new CompletableFuture[0])).get();
-
+            // producer(s)
+            val collector = (NodeCollector) context.getBean(StringUtils.uncapitalize(config.getCollector().getName()));
+            nodeCollectors.add(collector.collect(config.getCollector()));
             // consumer(s)
             val processor = (NodeProcessor) context.getBean(StringUtils.uncapitalize(config.getProcessor().getName()));
             IntStream.range(0, consumerThreads).forEach(i -> nodeProcessors.add(processor.process(config.getProcessor())));
