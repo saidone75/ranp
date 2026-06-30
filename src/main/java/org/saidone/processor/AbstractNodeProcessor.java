@@ -74,8 +74,9 @@ public abstract class AbstractNodeProcessor extends BaseComponent implements Nod
      * Starts asynchronous consumption of processable node identifiers from the repository.
      * <p>
      * Processing stops when no pending or retryable failed node id is
-     * available. Each successfully processed node increments the shared
-     * counter and optionally waits according to the configured rate limit.
+     * available. Each claimed document is marked completed or failed after
+     * processing, then the worker optionally waits according to the configured
+     * rate limit.
      *
      * @param config processor-specific configuration used by
      *               {@link #processNode(String, ProcessorConfig)}

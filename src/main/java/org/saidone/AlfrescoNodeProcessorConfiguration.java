@@ -30,7 +30,7 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * Spring configuration that defines common beans used by the application such
- * as the queue and the lists of asynchronous tasks.
+ * as the lists of asynchronous collector and processor tasks.
  */
 @Configuration
 public class AlfrescoNodeProcessorConfiguration extends BaseComponent {

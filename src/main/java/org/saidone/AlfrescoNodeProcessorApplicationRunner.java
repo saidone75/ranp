@@ -112,7 +112,7 @@ public class AlfrescoNodeProcessorApplicationRunner extends BaseComponent implem
             super.shutDown(1);
         }
 
-        log.info("{} nodes processed", documentRepository.countByStatus(Document.STATUS_PENDING));
+        log.info("{} nodes processed", documentRepository.countByStatus(Document.STATUS_COMPLETED));
         log.debug("total time --> {}", String.format("%.02f", (System.currentTimeMillis() - startTimeMillis) / 1000f));
         super.shutDown(0);
     }

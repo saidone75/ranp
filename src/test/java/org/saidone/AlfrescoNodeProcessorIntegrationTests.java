@@ -98,7 +98,7 @@ class AlfrescoNodeProcessorIntegrationTests extends BaseTest {
     void testLogNodeNameProcessor() {
         // create node
         val nodeId = createNode();
-        // add node to queue
+        // add node to repository
         documentRepository.save(new Document(nodeId));
         // process node
         ((NodeProcessor) context.getBean("logNodeNameProcessor")).process(new ProcessorConfig()).get();
@@ -117,7 +117,7 @@ class AlfrescoNodeProcessorIntegrationTests extends BaseTest {
         // create node
         val nodeId = createNode();
         try {
-            // add node to queue
+            // add node to repository
             documentRepository.save(new Document(nodeId));
             // mock config
             val processorConfig = new ProcessorConfig();
@@ -145,7 +145,7 @@ class AlfrescoNodeProcessorIntegrationTests extends BaseTest {
                     new HashMap<String, Object>() {{
                         put(ContentModel.PROP_TITLE, null);
                     }});
-            // add node to queue
+            // add node to repository
             documentRepository.save(new Document(nodeId));
             // process node
             ((NodeProcessor) context.getBean("aspectsAndPropertiesProcessor")).process(processorConfig).get();
@@ -170,7 +170,7 @@ class AlfrescoNodeProcessorIntegrationTests extends BaseTest {
     void testDeleteNodeProcessor() {
         // create node
         val nodeId = createNode();
-        // add node to queue
+        // add node to repository
         documentRepository.save(new Document(nodeId));
         // mock config
         val processorConfig = new ProcessorConfig();
@@ -193,7 +193,7 @@ class AlfrescoNodeProcessorIntegrationTests extends BaseTest {
     void testSetPermissionsProcessor() {
         // create node
         val nodeId = createNode();
-        // add node to queue
+        // add node to repository
         documentRepository.save(new Document(nodeId));
         // mock config
         val processorConfig = new ProcessorConfig();
@@ -232,7 +232,7 @@ class AlfrescoNodeProcessorIntegrationTests extends BaseTest {
         // mock config
         val collectorConfig = new CollectorConfig();
         collectorConfig.addArg(NodeListCollector.NODE_LIST_ARG, file.getAbsolutePath());
-        // use collector to populate queue
+        // use collector to populate the repository
         (((NodeCollector) context.getBean("nodeListCollector")).collect(collectorConfig)).get();
         try {
             // assertions
@@ -253,7 +253,7 @@ class AlfrescoNodeProcessorIntegrationTests extends BaseTest {
         // mock config
         val collectorConfig = new CollectorConfig();
         collectorConfig.addArg("path", "/Guest Home");
-        // use collector to populate queue
+        // use collector to populate the repository
         (((NodeCollector) context.getBean("nodeTreeCollector")).collect(collectorConfig)).get();
         try {
             // assertions
@@ -274,7 +274,7 @@ class AlfrescoNodeProcessorIntegrationTests extends BaseTest {
         val parentId = createFolder();
         // create 2nd node
         val anotherNodeId = createNode(parentId, url).getId();
-        // add nodes to queue
+        // add nodes to repository
         documentRepository.save(new Document(nodeId));
         documentRepository.save(new Document(anotherNodeId));
         // create target folder
@@ -307,7 +307,7 @@ class AlfrescoNodeProcessorIntegrationTests extends BaseTest {
     void testChainingNodeProcessor() {
         // create node
         val nodeId = createNode();
-        // add node to queue
+        // add node to repository
         documentRepository.save(new Document(nodeId));
         // mock config
         val chainConfig = List.of(
@@ -354,7 +354,7 @@ class AlfrescoNodeProcessorIntegrationTests extends BaseTest {
         properties.put(ContentModel.PROP_AUTHOR, "new-author");
         nodeBodyUpdate.setProperties(properties);
         nodesApi.updateNode(nodeId, nodeBodyUpdate, null, null);
-        // add node to queue
+        // add node to repository
         documentRepository.save(new Document(nodeId));
         // mock config
         val processorConfig = new ProcessorConfig();
@@ -390,7 +390,7 @@ class AlfrescoNodeProcessorIntegrationTests extends BaseTest {
         properties.put(ContentModel.PROP_DESCRIPTION, "2026-02-27 15:20:00.0");
         nodeBodyUpdate.setProperties(properties);
         nodesApi.updateNode(nodeId, nodeBodyUpdate, null, null);
-        // add node to queue
+        // add node to repository
         documentRepository.save(new Document(nodeId));
         // mock config
         val processorConfig = new ProcessorConfig();
@@ -447,7 +447,7 @@ class AlfrescoNodeProcessorIntegrationTests extends BaseTest {
         val nodeId = createNode(getTestRootFolderNodeId(), url).getId();
         // trash node
         nodesApi.deleteNode(nodeId, false);
-        // add node to queue
+        // add node to repository
         documentRepository.save(new Document(nodeId));
         // mock config
         val processorConfig = new ProcessorConfig();
