@@ -64,6 +64,7 @@ public class NodeTreeCollector extends AbstractNodeCollector {
             if (children == null || children.getList() == null) {
                 break;
             }
+            log.debug("Node {} has {} child{}", nodeId, children.getList().getEntries().size(), children.getList().getEntries().size() == 1 ? "" : "ren");
             for (val child : children.getList().getEntries().stream().map(NodeChildAssociationEntry::getEntry).toList()) {
                 if (child.isIsFolder()) {
                     nodeStack.push(child.getId());

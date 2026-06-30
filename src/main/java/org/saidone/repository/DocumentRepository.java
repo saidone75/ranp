@@ -35,8 +35,16 @@ public interface DocumentRepository extends JpaRepository<Document, String> {
     
     List<Document> findByStatusOrderByUpdatedAtAsc(String status, Pageable pageable);
 
-    List<Document> findByStatusAndRetryCountLessThanAndUpdatedAtBeforeOrderByUpdatedAtAsc(
+    List<Document> findByStatusAndRetryCountLessThanAndUpdatedAtLessThanEqualOrderByUpdatedAtAsc(
             String status, Integer retryCount, String updatedAt, Pageable pageable);
+
+    @Modifying
+    @Query("update Document d set d.status = :failedStatus, d.lastError = :lastError, d.retryCount = d.retryCount + 1, d.updatedAt = :updatedAt where d.status = :processingStatus and d.updatedAt < :staleBefore")
+    int failStaleProcessingDocuments(@Param("processingStatus") String processingStatus,
+                                     @Param("failedStatus") String failedStatus,
+                                     @Param("lastError") String lastError,
+                                     @Param("staleBefore") String staleBefore,
+                                     @Param("updatedAt") String updatedAt);
 
     @Modifying
     @Query("update Document d set d.status = :status, d.lastError = :lastError, d.updatedAt = :updatedAt where d.nodeId = :nodeId")

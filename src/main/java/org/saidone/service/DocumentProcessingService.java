@@ -38,16 +38,21 @@ import java.util.List;
 public class DocumentProcessingService {
 
     private static final int MAX_ERROR_LENGTH = 1000;
+    private static final String PROCESSING_TIMEOUT_ERROR = "Processing timeout elapsed";
 
     private final DocumentRepository documentRepository;
 
     /**
      * Claims the next processable documents in a single repository round-trip per
      * status, preferring never-processed nodes and filling the remaining slots with
-     * retryable failures whose delay has elapsed.
+     * retryable failures whose delay has elapsed. Stale processing documents are
+     * first marked as failed so they can re-enter the retry flow.
      */
     @Transactional
-    public synchronized List<Document> claimNextBatch(int maxRetryCount, long retryDelaySeconds, int batchSize) {
+    public synchronized List<Document> claimNextBatch(int maxRetryCount, long retryDelaySeconds,
+                                                      long processingTimeoutSeconds, int batchSize) {
+        failStaleProcessingDocuments(processingTimeoutSeconds);
+
         val safeBatchSize = Math.max(1, batchSize);
         val documents = new ArrayList<Document>(safeBatchSize);
 
@@ -56,7 +61,7 @@ public class DocumentProcessingService {
 
         val remaining = safeBatchSize - documents.size();
         if (remaining > 0) {
-            documents.addAll(documentRepository.findByStatusAndRetryCountLessThanAndUpdatedAtBeforeOrderByUpdatedAtAsc(
+            documents.addAll(documentRepository.findByStatusAndRetryCountLessThanAndUpdatedAtLessThanEqualOrderByUpdatedAtAsc(
                     Document.STATUS_FAILED,
                     maxRetryCount,
                     Document.readableTimestampMinusSeconds(retryDelaySeconds),
@@ -68,6 +73,19 @@ public class DocumentProcessingService {
             d.setLastError(null);
         });
         return documentRepository.saveAll(documents);
+    }
+
+    private void failStaleProcessingDocuments(long processingTimeoutSeconds) {
+        if (processingTimeoutSeconds <= 0) {
+            return;
+        }
+
+        documentRepository.failStaleProcessingDocuments(
+                Document.STATUS_PROCESSING,
+                Document.STATUS_FAILED,
+                PROCESSING_TIMEOUT_ERROR,
+                Document.readableTimestampMinusSeconds(processingTimeoutSeconds),
+                Document.nowAsReadableTimestamp());
     }
 
     @Transactional

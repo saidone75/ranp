@@ -64,6 +64,9 @@ public abstract class AbstractNodeProcessor extends BaseComponent implements Nod
     @Value("${application.processor-retry-delay-seconds:0}")
     private long processorRetryDelaySeconds;
 
+    @Value("${application.processor-processing-timeout-seconds:3600}")
+    private long processorProcessingTimeoutSeconds;
+
     @Value("${application.processor-max-retry-count:5}")
     private int processorMaxRetryCount;
 
@@ -96,6 +99,7 @@ public abstract class AbstractNodeProcessor extends BaseComponent implements Nod
                 val documents = documentProcessingService.claimNextBatch(
                         processorMaxRetryCount,
                         processorRetryDelaySeconds,
+                        processorProcessingTimeoutSeconds,
                         processorBatchSize);
                 if (documents.isEmpty()) {
                     idleSince = waitForMoreWorkOrTimeout(idleSince);
