@@ -75,7 +75,7 @@ public abstract class AbstractNodeCollector extends BaseComponent implements Nod
                     if (waitForCollector(collectorTask)) {
                         return;
                     }
-                    log.warn("Collector {} did not collect nodes for {} ms; restarting",
+                    log.warn("Collector {} did not collect nodes for {} s; restarting",
                             config.getName(), collectorRestartTimeout);
                 } finally {
                     executor.shutdownNow();
@@ -119,11 +119,11 @@ public abstract class AbstractNodeCollector extends BaseComponent implements Nod
                 propagateCollectorFailure(collectorTask);
                 return true;
             }
-            if (System.currentTimeMillis() - lastCollectedAt.get() >= collectorRestartTimeout) {
+            if (System.currentTimeMillis() - lastCollectedAt.get() >= 1000L * collectorRestartTimeout) {
                 collectorTask.cancel(true);
                 return false;
             }
-            interruptibleSleep(Math.min(1000, collectorRestartTimeout));
+            interruptibleSleep(Math.min(1000, 1000L * collectorRestartTimeout));
         }
         collectorTask.cancel(true);
         return true;
