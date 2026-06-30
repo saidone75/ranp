@@ -23,8 +23,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.val;
 
-import java.time.Instant;
-
 @Entity
 @Table(name = "node_ids")
 @NoArgsConstructor
@@ -50,10 +48,10 @@ public class Document {
     private String lastError;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private Instant createdAt;
+    private Long createdAt;
 
     @Column(name = "updated_at", nullable = false)
-    private Instant updatedAt;
+    private Long updatedAt;
 
     public Document(String nodeId) {
         this.nodeId = nodeId;
@@ -61,14 +59,14 @@ public class Document {
 
     @PrePersist
     protected void onCreate() {
-        val instant = Instant.now();
-        setCreatedAt(instant);
-        setUpdatedAt(instant);
+        val now = System.currentTimeMillis();
+        setCreatedAt(now);
+        setUpdatedAt(now);
     }
 
     @PreUpdate
     protected void onUpdate() {
-        setUpdatedAt(Instant.now());
+        setUpdatedAt(System.currentTimeMillis());
     }
 
     public void increaseRetryCount() {
