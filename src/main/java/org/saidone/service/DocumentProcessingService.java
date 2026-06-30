@@ -18,6 +18,7 @@
 
 package org.saidone.service;
 
+import lombok.RequiredArgsConstructor;
 import lombok.val;
 import org.saidone.entity.Document;
 import org.saidone.repository.DocumentRepository;
@@ -26,33 +27,21 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Coordinates processor access to persisted node identifiers and status
  * transitions.
  */
+@RequiredArgsConstructor
 @Service
 public class DocumentProcessingService {
 
     private static final int MAX_ERROR_LENGTH = 1000;
 
     private final DocumentRepository documentRepository;
-
-    public DocumentProcessingService(DocumentRepository documentRepository) {
-        this.documentRepository = documentRepository;
-    }
-
-    /**
-     * Claims the next processable document, preferring never-processed nodes and
-     * then retryable failures whose delay has elapsed.
-     */
-    @Transactional
-    public synchronized Optional<Document> claimNext(int maxRetryCount, long retryDelaySeconds) {
-        return claimNextBatch(maxRetryCount, retryDelaySeconds, 1).stream().findFirst();
-    }
 
     /**
      * Claims the next processable documents in a single repository round-trip per
@@ -72,7 +61,7 @@ public class DocumentProcessingService {
             documents.addAll(documentRepository.findByStatusAndRetryCountLessThanAndUpdatedAtBeforeOrderByUpdatedAtAsc(
                     Document.STATUS_FAILED,
                     maxRetryCount,
-                    Instant.now().minusSeconds(retryDelaySeconds),
+                    Instant.now().minusSeconds(retryDelaySeconds).toEpochMilli(),
                     PageRequest.of(0, remaining)));
         }
 

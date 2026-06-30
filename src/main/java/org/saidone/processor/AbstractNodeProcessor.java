@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Base implementation of {@link NodeProcessor} that consumes node identifiers
@@ -46,9 +45,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @Slf4j
 public abstract class AbstractNodeProcessor extends BaseComponent implements NodeProcessor {
-
-    @Autowired
-    private AtomicInteger processedNodesCounter;
 
     @Autowired
     protected NodesApi nodesApi;
@@ -101,7 +97,6 @@ public abstract class AbstractNodeProcessor extends BaseComponent implements Nod
                     try {
                         processNode(nodeId, config);
                         documentProcessingService.markCompleted(nodeId);
-                        processedNodesCounter.incrementAndGet();
                     } catch (Exception e) {
                         log.trace(e.getMessage(), e);
                         log.error(e.getMessage());

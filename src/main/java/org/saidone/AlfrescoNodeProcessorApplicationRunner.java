@@ -22,7 +22,9 @@ import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.saidone.collector.NodeCollector;
 import org.saidone.component.BaseComponent;
+import org.saidone.entity.Document;
 import org.saidone.processor.NodeProcessor;
+import org.saidone.repository.DocumentRepository;
 import org.saidone.util.AlfrescoNodeProcessorUtils;
 import org.saidone.util.AnpCommandLineParser;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,7 +58,7 @@ public class AlfrescoNodeProcessorApplicationRunner extends BaseComponent implem
     private LinkedList<CompletableFuture<Void>> nodeProcessors;
 
     @Autowired
-    private AtomicInteger processedNodesCounter;
+    private DocumentRepository documentRepository;
 
     @Value("${application.consumer-threads}")
     private int consumerThreads;
@@ -110,7 +112,7 @@ public class AlfrescoNodeProcessorApplicationRunner extends BaseComponent implem
             super.shutDown(1);
         }
 
-        log.info("{} nodes processed", processedNodesCounter.get());
+        log.info("{} nodes processed", documentRepository.countByStatus(Document.STATUS_PENDING));
         log.debug("total time --> {}", String.format("%.02f", (System.currentTimeMillis() - startTimeMillis) / 1000f));
         super.shutDown(0);
     }

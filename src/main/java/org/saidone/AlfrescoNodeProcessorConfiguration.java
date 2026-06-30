@@ -22,14 +22,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.saidone.component.BaseComponent;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.util.LinkedList;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Spring configuration that defines common beans used by the application such
@@ -37,17 +34,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @Configuration
 public class AlfrescoNodeProcessorConfiguration extends BaseComponent {
-
-    @Value("${application.queue-size}")
-    private int queueSize;
-
-    /**
-     * Queue used to pass node identifiers between collectors and processors.
-     */
-    @Bean
-    public LinkedBlockingQueue<String> queue() {
-        return new LinkedBlockingQueue<>(queueSize);
-    }
 
     /**
      * Holder for asynchronous collector tasks.
@@ -63,14 +49,6 @@ public class AlfrescoNodeProcessorConfiguration extends BaseComponent {
     @Bean
     public LinkedList<CompletableFuture<Void>> nodeProcessors() {
         return new LinkedList<>();
-    }
-
-    /**
-     * Counter of processed nodes shared across processors.
-     */
-    @Bean
-    public AtomicInteger processedNodesCounter() {
-        return new AtomicInteger(0);
     }
 
     /**

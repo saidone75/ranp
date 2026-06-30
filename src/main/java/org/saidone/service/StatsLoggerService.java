@@ -30,7 +30,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Periodically logs statistics about persisted and processed nodes.
@@ -42,9 +41,6 @@ public class StatsLoggerService extends BaseComponent {
 
     @Autowired
     private DocumentRepository documentRepository;
-
-    @Autowired
-    private AtomicInteger processedNodesCounter;
 
     @Value("${application.stats-service.print-interval}")
     private int printInterval;
@@ -60,7 +56,7 @@ public class StatsLoggerService extends BaseComponent {
             while (true) {
                 log.debug("pending nodes --> {}", documentRepository.countByStatus(Document.STATUS_PENDING));
                 log.debug("failed nodes --> {}", documentRepository.countByStatus(Document.STATUS_FAILED));
-                log.info("processed nodes --> {}", processedNodesCounter.get());
+                log.info("processed nodes --> {}", documentRepository.countByStatus(Document.STATUS_COMPLETED));
                 try {
                     TimeUnit.SECONDS.sleep(printInterval);
                 } catch (InterruptedException e) {

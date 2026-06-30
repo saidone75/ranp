@@ -26,29 +26,18 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.Instant;
-import java.util.Collection;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface DocumentRepository extends JpaRepository<Document, String> {
-
-    boolean existsByStatus(String status);
-
-    long countByStatusIn(Collection<String> statuses);
-
+    
     long countByStatus(String status);
-
-    Optional<Document> findFirstByStatusOrderByUpdatedAtAsc(String status);
-
+    
     List<Document> findByStatusOrderByUpdatedAtAsc(String status, Pageable pageable);
 
-    Optional<Document> findFirstByStatusAndRetryCountLessThanAndUpdatedAtBeforeOrderByUpdatedAtAsc(
-            String status, Integer retryCount, Instant updatedAt);
-
     List<Document> findByStatusAndRetryCountLessThanAndUpdatedAtBeforeOrderByUpdatedAtAsc(
-            String status, Integer retryCount, Instant updatedAt, Pageable pageable);
+            String status, Integer retryCount, Long updatedAt, Pageable pageable);
 
     @Modifying
     @Query("update Document d set d.status = :status, d.lastError = :lastError where d.nodeId = :nodeId")
