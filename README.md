@@ -28,6 +28,7 @@ Pull requests are welcome!
 - `ChainingNodeProcessor` executes multiple processors sequentially
 - Database-backed node worklist with persisted processing status and retry metadata
 - Configurable consumer threads, batch claiming, retry delay and maximum retry count
+- Optional collector auto-restart when no new nodes are collected for a configured timeout
 - Easily extensible by implementing `AbstractNodeCollector` and `AbstractNodeProcessor`
 
 ## Customize
@@ -93,6 +94,12 @@ This collector uses a recursive SQL query, so it is useful for large trees where
   }
 }
 ```
+
+### Collector auto-restart
+Collectors normally run once and stop when their implementation completes. To automatically restart a collector that stays alive but does not store any new node IDs for a while, set `application.collector-restart-timeout` (or the `COLLECTOR_RESTART_TIMEOUT` environment variable) to the idle timeout in milliseconds.
+
+The default value is `0`, which disables automatic restarts, so a collector never restarts automatically unless the timeout is explicitly configured.
+
 ### Processing nodes
 #### DeleteNodeProcessor
 Delete the collected nodes, set the `permanent` flag to true if you want to delete the nodes directly rather than move them into the trashcan:

@@ -40,6 +40,7 @@ application:
   queue-size: ${QUEUE_SIZE:1000}
   consumer-threads: ${CONSUMER_THREADS:4}
   consumer-timeout: ${CONSUMER_TIMEOUT:0}
+  collector-restart-timeout: ${COLLECTOR_RESTART_TIMEOUT:300}
   rate-limit-ms: ${RATE_LIMIT_MS:0}
   processor-retry-delay-seconds: ${PROCESSOR_RETRY_DELAY_SECONDS:0}
   processor-processing-timeout-seconds: ${PROCESSOR_PROCESSING_TIMEOUT_SECONDS:120}
