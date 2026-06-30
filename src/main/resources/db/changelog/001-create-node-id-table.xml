@@ -35,10 +35,10 @@
                 <constraints nullable="false"/>
             </column>
             <column name="last_error" type="VARCHAR(1000)"/>
-            <column name="created_at" type="BIGINT">
+            <column name="created_at" type="VARCHAR(23)">
                 <constraints nullable="false"/>
             </column>
-            <column name="updated_at" type="BIGINT">
+            <column name="updated_at" type="VARCHAR(23)">
                 <constraints nullable="false"/>
             </column>
         </createTable>

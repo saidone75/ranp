@@ -26,7 +26,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -60,7 +59,7 @@ public class DocumentProcessingService {
             documents.addAll(documentRepository.findByStatusAndRetryCountLessThanAndUpdatedAtBeforeOrderByUpdatedAtAsc(
                     Document.STATUS_FAILED,
                     maxRetryCount,
-                    Instant.now().minusSeconds(retryDelaySeconds).toEpochMilli(),
+                    Document.readableTimestampMinusSeconds(retryDelaySeconds),
                     PageRequest.of(0, remaining)));
         }
 
@@ -73,12 +72,14 @@ public class DocumentProcessingService {
 
     @Transactional
     public void markCompleted(String nodeId) {
-        documentRepository.updateStatus(nodeId, Document.STATUS_COMPLETED, null);
+        documentRepository.updateStatus(nodeId, Document.STATUS_COMPLETED, null,
+                Document.nowAsReadableTimestamp());
     }
 
     @Transactional
     public void markFailed(String nodeId, Exception exception) {
-        documentRepository.updateFailedStatus(nodeId, Document.STATUS_FAILED, truncateError(exception));
+        documentRepository.updateFailedStatus(nodeId, Document.STATUS_FAILED, truncateError(exception),
+                Document.nowAsReadableTimestamp());
     }
 
     private String truncateError(Exception exception) {

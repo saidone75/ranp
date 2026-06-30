@@ -23,11 +23,18 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.val;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+
 @Entity
 @Table(name = "node_ids")
 @NoArgsConstructor
 @Data
 public class Document {
+
+    private static final DateTimeFormatter READABLE_TIMESTAMP_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
 
     public static final String STATUS_PENDING = "PENDING";
     public static final String STATUS_PROCESSING = "PROCESSING";
@@ -48,10 +55,10 @@ public class Document {
     private String lastError;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private Long createdAt;
+    private String createdAt;
 
     @Column(name = "updated_at", nullable = false)
-    private Long updatedAt;
+    private String updatedAt;
 
     public Document(String nodeId) {
         this.nodeId = nodeId;
@@ -59,14 +66,24 @@ public class Document {
 
     @PrePersist
     protected void onCreate() {
-        val now = System.currentTimeMillis();
+        val now = nowAsReadableTimestamp();
         setCreatedAt(now);
         setUpdatedAt(now);
     }
 
     @PreUpdate
     protected void onUpdate() {
-        setUpdatedAt(System.currentTimeMillis());
+        setUpdatedAt(nowAsReadableTimestamp());
+    }
+
+    public static String nowAsReadableTimestamp() {
+        return readableTimestampMinusSeconds(0);
+    }
+
+    public static String readableTimestampMinusSeconds(long seconds) {
+        return LocalDateTime.now(ZoneOffset.UTC)
+                .minusSeconds(seconds)
+                .format(READABLE_TIMESTAMP_FORMATTER);
     }
 
     public void increaseRetryCount() {

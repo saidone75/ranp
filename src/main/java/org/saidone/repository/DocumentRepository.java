@@ -36,14 +36,16 @@ public interface DocumentRepository extends JpaRepository<Document, String> {
     List<Document> findByStatusOrderByUpdatedAtAsc(String status, Pageable pageable);
 
     List<Document> findByStatusAndRetryCountLessThanAndUpdatedAtBeforeOrderByUpdatedAtAsc(
-            String status, Integer retryCount, Long updatedAt, Pageable pageable);
+            String status, Integer retryCount, String updatedAt, Pageable pageable);
 
     @Modifying
-    @Query("update Document d set d.status = :status, d.lastError = :lastError where d.nodeId = :nodeId")
-    void updateStatus(@Param("nodeId") String nodeId, @Param("status") String status, @Param("lastError") String lastError);
+    @Query("update Document d set d.status = :status, d.lastError = :lastError, d.updatedAt = :updatedAt where d.nodeId = :nodeId")
+    void updateStatus(@Param("nodeId") String nodeId, @Param("status") String status, @Param("lastError") String lastError,
+                      @Param("updatedAt") String updatedAt);
 
     @Modifying
-    @Query("update Document d set d.status = :status, d.lastError = :lastError, d.retryCount = d.retryCount + 1 where d.nodeId = :nodeId")
-    void updateFailedStatus(@Param("nodeId") String nodeId, @Param("status") String status, @Param("lastError") String lastError);
+    @Query("update Document d set d.status = :status, d.lastError = :lastError, d.retryCount = d.retryCount + 1, d.updatedAt = :updatedAt where d.nodeId = :nodeId")
+    void updateFailedStatus(@Param("nodeId") String nodeId, @Param("status") String status, @Param("lastError") String lastError,
+                            @Param("updatedAt") String updatedAt);
 
 }
