@@ -8,7 +8,7 @@ _Do things with nodes._
 ![Java CI](https://github.com/saidone75/alfresco-node-processor/actions/workflows/build.yml/badge.svg)
 ![CodeQL](https://github.com/saidone75/alfresco-node-processor/actions/workflows/codeql.yml/badge.svg)
 
-A modern, threaded and easily customizable Spring Boot Application that - given a means for collecting nodes - do something with them.
+A modern, resilient and easily customizable Spring Boot application that - given a means for collecting nodes - stores node IDs in a database and does something with them using configurable worker threads.
 
 Think about this as a template for your application.
 
@@ -26,14 +26,15 @@ Pull requests are welcome!
 - `DownloadNodeProcessor` saves node content and metadata to the filesystem
 - `NormalizeMetadataProcessor` normalizes and copies metadata values
 - `ChainingNodeProcessor` executes multiple processors sequentially
-- Queue based architecture with configurable consumer threads
+- Database-backed node worklist with persisted processing status and retry metadata
+- Configurable consumer threads, batch claiming, retry delay and maximum retry count
 - Easily extensible by implementing `AbstractNodeCollector` and `AbstractNodeProcessor`
 
 ## Customize
 If none of the predefined Collectors/Processors meet your needs, simply write your own by extending the abstract ones. Just inject the required handlers (e.g., NodesApi) and override the relevant methods.
 ### Collecting nodes
 #### QueryNodeCollector
-The QueryNodeCollector takes an Alfresco FTS query, execute it on a separate thread and feed the queue:
+The QueryNodeCollector takes an Alfresco FTS query, executes it on a separate thread and stores collected node IDs in the processing database:
 ```json
 "collector": {
   "name": "QueryNodeCollector",
@@ -254,14 +255,16 @@ Global configuration is stored in `config/application.yml` file, the relevant pa
 | ALFRESCO_BASE_PATH           | `content.service.url`                        | http://localhost:8080| scheme, host and port of the Alfresco server                                                        |
 | ALFRESCO_USERNAME            | `content.service.security.basicAuth.username`| admin                | Alfresco user                                                                                       |
 | ALFRESCO_PASSWORD            | `content.service.security.basicAuth.password`| admin                | password for the Alfresco user                                                                      |
-| QUEUE_SIZE                   | `application.queue-size`                     | 1000                 | size of the node-uuid queue                                                                         |
-| CONSUMER_THREADS             | `application.consumer-threads`               | 4                    | number of consumers that are executed simultaneously                                                |
-| CONSUMER_TIMEOUT             | `application.consumer-timeout`               | 5000                 | milliseconds after which a consumer gives up waiting for data in the queue                          |
+| SQLITE_DB_URL                | `spring.datasource.url`                      | jdbc:sqlite:./ranp.db| JDBC URL of the SQLite processing database used to persist collected node IDs and their status      |
+| LIQUIBASE_ENABLED            | `spring.liquibase.enabled`                   | true                 | enables Liquibase migrations that create/update the processing database schema                      |
+| CONSUMER_THREADS             | `application.consumer-threads`               | 4                    | number of processor workers that claim database records simultaneously                              |
 | RATE_LIMIT_MS                | `application.rate-limit-ms`                  | 0                    | pause in milliseconds after each processed node; actual pause is multiplied by consumer thread count|
 | PROCESSOR_RETRY_DELAY_SECONDS| `application.processor-retry-delay-seconds`  | 0                    | seconds to wait before retrying a failed node                                                       |
-| PROCESSOR_MAX_RETRY_COUNT    | `application.processor-max-retry-count`      | 5                    | maximum number of attempts for a failed node before it is ignored                                   |
+| PROCESSOR_MAX_RETRY_COUNT    | `application.processor-max-retry-count`      | 5                    | maximum number of failed attempts before a node is no longer claimed for processing                 |
 | PROCESSOR_BATCH_SIZE         | `application.processor-batch-size`           | 10                   | number of processable nodes claimed from the database at once by each consumer                      |
 | READ_ONLY                    | `application.read-only`                      | true                 | when true, mutating operations on nodes are skipped                                                 |
+
+Collectors persist node IDs in the `node_ids` table instead of passing them through an in-memory queue. Processors claim `PENDING` records in batches, mark them as `PROCESSING`, then update each row to `COMPLETED` or `FAILED`. Failed rows keep the last error and retry count, and they become claimable again after `PROCESSOR_RETRY_DELAY_SECONDS` until `PROCESSOR_MAX_RETRY_COUNT` is reached. The default database is a local SQLite file (`./ranp.db`), initialized by Liquibase.
 ## Testing
 For integration tests just change configuration and point it to an existing Alfresco installation, or use `alfresco.(sh|bat)` script to start it with docker.
 

@@ -12,7 +12,7 @@ spring:
         jackson:
           enabled: false
   datasource:
-    url: ${PROD_SQLITE_DB_URL:jdbc:sqlite:./ranp.db}
+    url: ${SQLITE_DB_URL:jdbc:sqlite:./ranp.db}
     driver-class-name: org.sqlite.JDBC
     hikari:
       maximum-pool-size: 1
