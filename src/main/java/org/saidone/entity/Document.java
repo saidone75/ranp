@@ -54,6 +54,9 @@ public class Document {
     @Column(name = "last_error", length = 1000)
     private String lastError;
 
+    @Column(name = "collector_job_id")
+    private Long collectorJobId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private String createdAt;
 
@@ -62,6 +65,11 @@ public class Document {
 
     public Document(String nodeId) {
         this.nodeId = nodeId;
+    }
+
+    public Document(String nodeId, Long collectorJobId) {
+        this.nodeId = nodeId;
+        this.collectorJobId = collectorJobId;
     }
 
     @PrePersist

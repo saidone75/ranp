@@ -48,6 +48,21 @@ the default page size for search is `100` and can be modified by passing an addi
 ```json
 "batch-size": 1000
 ```
+
+
+For large repositories the collector can automatically create persisted jobs by splitting a `cm:created` range until every job contains at most `max-nodes-per-job` nodes (default `100000`). Each resulting job stores the query that will be executed, and each collected document stores the id of the job that found it. Configure the initial range with ISO-8601 instants:
+```json
+"collector": {
+  "name": "QueryNodeCollector",
+  "args": {
+    "query": "TYPE:'cm:content'",
+    "min-created": "1970-01-01T00:00:00Z",
+    "max-created": "2026-12-31T23:59:59Z",
+    "max-nodes-per-job": 100000
+  }
+}
+```
+If the query already contains a `cm:created:[MIN TO MAX]` clause, the collector replaces that range for each job; otherwise it appends the generated range to the configured query.
 #### NodeListCollector
 The NodeListCollector takes an input file containing a list of node-id with each id on a separate line, e.g.:
 ```

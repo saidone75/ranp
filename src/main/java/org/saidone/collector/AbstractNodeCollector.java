@@ -93,6 +93,16 @@ public abstract class AbstractNodeCollector extends BaseComponent implements Nod
      * @param nodeId Alfresco node id to persist
      */
     protected void collectNode(String nodeId) {
+        collectNode(nodeId, null);
+    }
+
+    /**
+     * Stores a collected node identifier and the collector job that found it.
+     *
+     * @param nodeId Alfresco node id to persist
+     * @param collectorJobId collector job id that produced the query returning the node
+     */
+    protected void collectNode(String nodeId, Long collectorJobId) {
         if (nodeId == null) {
             return;
         }
@@ -101,7 +111,7 @@ public abstract class AbstractNodeCollector extends BaseComponent implements Nod
             return;
         }
         try {
-            documentRepository.save(new Document(nodeId));
+            documentRepository.save(new Document(nodeId, collectorJobId));
         } catch (DataIntegrityViolationException e) {
             log.debug("Node {} was already stored by another collector", nodeId);
         }
