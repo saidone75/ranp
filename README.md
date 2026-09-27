@@ -63,6 +63,21 @@ For large repositories the collector can automatically create persisted jobs by 
 }
 ```
 If the query already contains a `cm:created:[MIN TO MAX]` clause, the collector replaces that range for each job; otherwise it appends the generated range to the configured query.
+#### PathCollector
+`PathCollector` discovers the oldest and newest `cm:created` values matching an FTS path, then bisects the inclusive date range until each non-empty query contains at most `max-nodes-per-job` nodes (default `1000`). Adjacent ranges are separated by one millisecond to avoid overlap.
+
+```json
+"collector": {
+  "name": "PathCollector",
+  "args": {
+    "path": "/app:company_home/app:guest_home//*",
+    "max-nodes-per-job": 1000
+  }
+}
+```
+
+Each accepted query is saved in `collector_jobs` with its node count and `PENDING` status. Once all jobs have been created, the collector executes each query with pagination (`batch-size`, default `100`), stores the node IDs in `node_ids` with their `collector_job_id`, and updates each job from `PENDING` to `RUNNING` to `COMPLETED`. Existing node IDs retain their processing status. A failed job remains `RUNNING` and the error is propagated. Automatic collector restarts are disabled for this collector to avoid duplicating jobs during long planning phases. Empty queries are skipped. If more than the configured limit share the same creation timestamp, planning fails explicitly because dates alone cannot split them further. Jobs saved before a failure remain in the table; running the collector again creates new jobs. Counts reflect the search index at query time, so changes in the repository during planning can affect results.
+
 #### NodeListCollector
 The NodeListCollector takes an input file containing a list of node-id with each id on a separate line, e.g.:
 ```
