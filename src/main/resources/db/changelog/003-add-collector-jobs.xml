@@ -25,7 +25,8 @@
 
     <changeSet id="003-add-collector-jobs" author="saidone">
         <createTable tableName="collector_jobs">
-            <column name="id" type="BIGINT" autoIncrement="true">
+            <!-- SQLite requires the exact INTEGER type for an autoincrement primary key. -->
+            <column name="id" type="INTEGER" autoIncrement="true">
                 <constraints nullable="false" primaryKey="true"/>
             </column>
             <column name="query" type="VARCHAR(4000)">
